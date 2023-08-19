@@ -1,0 +1,24 @@
+
+Casos de teste com diferentes tamanhos, que geram arquivos de saída.
+
+	(programa) -n 5 -atcg+ -f caso0.txt -o out0.csv
+	(programa) -n 30 -atcg+ -f caso1.txt -o out1.csv
+	(programa) -n 50 -atcg+ -f caso10.txt -o out10.csv
+	(programa) -n 200 -atcg+ -f caso100.txt -o out100.csv
+	(programa) -n 1000 -atcg+ -f caso1000.txt -o out1000.csv
+
+Outros casos de teste, que geram situações de erro.
+
+	; Arquivo muito pequeno
+	(programa) -n 10 -a -f cpeq.txt
+
+	; Arquivo muito grande (com muitas base)
+	(programa) -n 10 -a -f cgra.txt
+
+	; Arquivo com erro nas letras
+	(programa) -n 10 -a -f clet.txt
+	=> Letra "U" encontrada na linha 6
+	
+	
+
+

@@ -1,0 +1,15 @@
+
+Descrição dos arquivos
+
+	descricao.txt	 => este arquivo
+	Intel_2023_1.pdf => especificação do trabalho
+
+Descrição do diretório "Casos": contém vários casos de teste
+
+	Arquivos "*.txt": arquivos de entrada
+	Arquivos "*.csv": arquivos de saída correspondentes ao alguns arquivos de entrada (aqueles que não tem erro)
+	"descricao.txt": descrição dos arquivos de teste assim como as linhas de comando de chamada.
+		Há casos de teste que geram erros e outros que geram arquivos de saída.
+
+
+
