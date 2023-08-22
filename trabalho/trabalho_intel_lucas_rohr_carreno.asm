@@ -14,11 +14,12 @@
 	.data ; Segmento de dados para declaracao de variáveis, EQUs e mensagens
 
     entradaLinhaComando db 100 dup (?) ; reserva espaco para entrada da linha de comando
+
     nomeArquivoEntrada db 50 dup (?)
     nomeArquivoSaida db 50 dup (?)
     tamanhoGrupoString db 5 dup (?)
-    tamanhoGrupo db 0
-    escolhaATGC db 5 dup (?)
+    tamanhoGrupo dw 0
+    escolhaATGC dw 5 dup (?)
 
     opcaoF db "-f ", 0
 
@@ -32,12 +33,13 @@
     opcaoC db "-c", 0
     opcaoMais db "-+", 0
 
-    opcaoExtraA db 'a'
-    opcaoExtraT db 't'
-    opcaoExtraG db 'g'
-    opcaoExtraC db 'c'
-    opcaoExtraMais db '+'
+    opcaoExtraA equ 'a'
+    opcaoExtraT equ 't'
+    opcaoExtraG equ 'g'
+    opcaoExtraC equ 'c'
+    opcaoExtraMais equ '+'
 
+    msgApresentacao db CR, 'Bem-vindo ao processador de bases nitrogenadas!', CR, CR, 0
     msgErroOpcaoF db CR, "Erro: Nome do arquivo de entrada não informado", CR, 0
     msgErroOpcaoN db CR, "Erro: Tamanho dos grupos de bases nitrogenadas não informado", CR, 0
     msgErroOpcaoATGC db CR, "Erro: Opção de saída ATGC+ não informada", CR, 0
@@ -55,6 +57,9 @@
 
     .code ; segmento de codigo
 	.startup
+
+    lea	bx, msgApresentacao
+	call printf_s
 
     call get_linha_comando ; le a linha de comando
 
@@ -94,8 +99,8 @@ processa_opcao_f	proc	near
     mov si, di ; SI recebe o endereco atual na string de entrada
     lea di, nomeArquivoEntrada ; DI recebe o endereco do nome do arquivo a ser salvo
 
-    mov		ax,ds ; Ajusta ES=DS para poder usar o MOVSB
-	mov		es,ax
+    mov	ax, ds ; Ajusta ES=DS para poder usar o MOVSB
+	mov	es, ax
 
     repe movsb ; copia sting
 
@@ -130,10 +135,10 @@ processa_opcao_o	proc	near
     ; caso tiver opcao, guarda o nome do arquivo de saída
 
     mov si, di ; SI recebe o endereco atual na string de entrada
-    lea di, nomeArquivoSaída ; DI recebe o endereco do nome do arquivo a ser salvo
+    lea di, nomeArquivoSaida ; DI recebe o endereco do nome do arquivo a ser salvo
 
-    mov		ax,ds ; Ajusta ES=DS para poder usar o MOVSB
-	mov		es,ax
+    mov	ax,ds ; Ajusta ES=DS para poder usar o MOVSB
+	mov	es,ax
 
     repe movsb ; move a string de entrada até encontrar 0
 
@@ -171,8 +176,8 @@ processa_opcao_n	proc	near
     mov si, di ; SI recebe o endereco atual na string de entrada
     lea di, tamanhoGrupoString ; DI recebe o endereco do nome do arquivo a ser salvo
 
-    mov		ax,ds ; Ajusta ES=DS para poder usar o MOVSB
-	mov		es,ax
+    mov	ax,ds ; Ajusta ES=DS para poder usar o MOVSB
+	mov	es,ax
 
     repe movsb ; move a string de entrada até encontrar 0
 
@@ -181,7 +186,7 @@ processa_opcao_n	proc	near
     lea bx, tamanhoGrupoString
 	call atoi ; ax = atoi(tamanhoGrupoString)
 
-    mov tamanhoGrupo, ax ; salva tamanho do grupo como valor inteiro
+    mov tamanhoGrupo, ax ; salva tamanho do grupo como valor hexa
 
     ret ; retorna
 
@@ -253,45 +258,46 @@ processa_opcao_ATGC	proc	near
         jne erro_sem_opcao_atgc
         je processa_opcao_atgc_completa
 
-    processo_opcao_atgc_completa:
-        mov escolhaATGC, [di+1] ; move primeira opcao para variavel
-
-        inc di ; comeca o loop do proximo char
+    processa_opcao_atgc_completa:
+        inc di ; comeca o loop do proximo char, pois tem o -
         mov bx, di
-        mov 
+        mov cx, 0
+
+        mov	ax, escolhaATGC ; passar endereco
+	    mov	es, ax
+
+        mov	byte ptr es:[di], [bx]
 
         loop_processa_atgc_completa:
-            cmp [bx], ' '
+            cmp byte ptr[bx], ' '
             je fim_opcao_atgc
 
-            cmp [bx], opcaoExtraA
+            cmp byte ptr[bx], opcaoExtraA
             je salva_opcao_extra_atgc
 
-            cmp [bx], opcaoExtraT
+            cmp byte ptr[bx], opcaoExtraT
             je salva_opcao_extra_atgc
 
-            cmp [bx], opcaoExtraG
+            cmp byte ptr[bx], opcaoExtraG
             je salva_opcao_extra_atgc
 
-            cmp [bx], opcaoExtraC
+            cmp byte ptr[bx], opcaoExtraC
             je salva_opcao_extra_atgc
 
-            cmp [bx], opcaoExtraMais
+            cmp byte ptr[bx], opcaoExtraMais
             je salva_opcao_extra_atgc
 
             jne fim_opcao_atgc_invalida
 
-            mov cx, 0
-
             salva_opcao_extra_atgc:
-                mov escolhaATGC+cx, [bx]
+                mov byte ptr es:[di], [bx]
                 inc bx
                 inc cx
 
                 jmp loop_processa_atgc_completa
 
         fim_opcao_atgc:
-            mov	byte ptr escolhaATGC:[cx], 0 ; Coloca marca de fim de string
+            mov	byte ptr es:[di], 0 ; Coloca marca de fim de string
 
             ret
 
@@ -332,7 +338,7 @@ processa_arquivo_entrada	proc	near
 	lea	bx, msgErroAbrirArquivo
 	call printf_s
 	mov	al, 1
-	jmp	final_erro_processa_arquivo_entrada
+	jmp	final_processa_arquivo_entrada
 
     continua_processa_arquivo_entrada:
 
@@ -364,7 +370,7 @@ get_linha_comando	proc	near
 
     mov si, 81h ; inicializa o ponteiro de origem
 
-    lea di, VAR ; inicializa o ponteiro de destino
+    lea di, entradaLinhaComando ; inicializa o ponteiro de destino
 
     rep movsb
 
@@ -379,21 +385,21 @@ get_linha_comando	endp
 printf_s	proc	near
 
 ;	While (*s!='\0') {
-	mov		dl,[bx]
-	cmp		dl,0
-	je		ps_1
+	mov	dl,[bx]
+	cmp	dl,0
+	je	ps_1
 
 ;		putchar(*s)
-	push	bx
-	mov		ah,2
-	int		21H
-	pop		bx
+	push bx
+	mov	ah,2
+	int	21H
+	pop	bx
 
 ;		++s;
-	inc		bx
+	inc	bx
 		
 ;	}
-	jmp		printf_s
+	jmp	printf_s
 		
 ps_1:
 	ret
@@ -407,30 +413,30 @@ printf_s	endp
 atoi	proc near
 
 		; A = 0;
-		mov		ax,0
+		mov	ax,0
 		
 atoi_2:
 		; while (*S!='\0') {
-		cmp		byte ptr[bx], 0
-		jz		atoi_1
+		cmp	byte ptr[bx], 0
+		jz	atoi_1
 
 		; 	A = 10 * A
-		mov		cx,10
-		mul		cx
+		mov	cx,10
+		mul	cx
 
 		; 	A = A + *S
-		mov		ch,0
-		mov		cl,[bx]
-		add		ax,cx
+		mov	ch,0
+		mov	cl,[bx]
+		add	ax,cx
 
 		; 	A = A - '0'
-		sub		ax,'0'
+		sub	ax,'0'
 
 		; 	++S
-		inc		bx
+		inc	bx
 		
 		;}
-		jmp		atoi_2
+		jmp	atoi_2
 
 atoi_1:
 		; return
