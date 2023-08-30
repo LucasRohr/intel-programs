@@ -21,17 +21,17 @@
     tamanhoGrupo dw 0
     escolhaATGC dw 5 dup (?)
 
-    opcaoF db "-f ", 0
+    opcaoF dw "-f"
 
-    opcaoO db "-o ", 0
+    opcaoO dw "-o"
 
-    opcaoN db "-n ", 0
+    opcaoN dw "-n"
 
-    opcaoA db "-a", 0
-    opcaoT db "-t", 0
-    opcaoG db "-g", 0
-    opcaoC db "-c", 0
-    opcaoMais db "-+", 0
+    opcaoA dw "-a"
+    opcaoT dw "-t"
+    opcaoG dw "-g"
+    opcaoC dw "-c"
+    opcaoMais dw "-+"
 
     opcaoExtraA equ 'a'
     opcaoExtraT equ 't'
@@ -39,25 +39,40 @@
     opcaoExtraC equ 'c'
     opcaoExtraMais equ '+'
 
-    msgErroOpcaoF db CR, "Erro: Nome do arquivo de entrada nao informado", CR, 0
-    msgErroOpcaoN db CR, "Erro: Tamanho dos grupos de bases nitrogenadas nao informado", CR, 0
-    msgErroOpcaoATGC db CR, "Erro: Opcao de saída ATGC+ nao informada", CR, 0
-    msgErroOpcaoATGCInvalida db CR, "Erro: Opcao de saída ATGC+ invalida", CR, 0
-    msgErroAbrirArquivo db CR, "Erro de leitura: o arquivo de entrada informado nao existe", CR, 0
+    msgErroOpcaoF db CR, "Erro: Nome do arquivo de entrada nao informado", CR, LF, 0
+    msgErroOpcaoN db CR, "Erro: Tamanho dos grupos de bases nitrogenadas nao informado", CR, LF, 0
+    msgErroOpcaoATGC db CR, "Erro: Opcao de saida ATGC+ nao informada", CR, LF, 0
+    msgErroOpcaoATGCInvalida db CR, "Erro: Opcao de saida ATGC+ invalida", CR, LF, 0
+    msgErroAbrirArquivo db CR, "Erro de abertura: o arquivo de entrada informado nao existe", CR, LF, 0
+    msgErroLerArquivo db CR, "Erro de leitura: houve um problema ao ler o arquivo de entrada", CR, LF, 0
+
+    msgCRLF	db	CR, LF, 0
 
     nomePadraoArquivoSaida	db	"a.out", 0
     temErroLinhaDeComando db 0
 
+    ; Variaveis para guardar dados do arquivo de entrada
+
     fileBuffer	db	10000 dup (?)	; Buffer de leitura do arquivo
     fileHandle	dw	0
-    tamanhoFile dw 0
+    totalBasesArquivo dw 0 ; total de bases nitrogenadas do arquivo, contador
+    totalGruposArquivo dw 0 ; total de grupor no arquivo
+    totalLinhasArquivo dw 0 ; total de linhas do arquivo
+    
 
     ; ---------------------------------------------------------------
 
     .code ; segmento de codigo
-	.startup
 
     call get_linha_comando ; le a linha de comando
+
+	.startup
+
+    lea bx, entradaLinhaComando
+    call printf_s
+
+    lea bx, msgCRLF
+    call printf_s
 
     call processa_opcao_f ; procura e armazena nome do arquivo de entrada ou gera erro
     call processa_opcao_o ; procura e armazena nome do arquivo de  saida ou usa o nome padrao
@@ -85,12 +100,14 @@ processa_opcao_f	proc	near
     mov cx, 100
     cld
 
-    mov AL, opcaoF
-    repne scasb ; procura '-f '
+    mov ax, opcaoF
+    repne scasb ; procura '-f'
 
     jne erro_sem_opcao_f
 
     ; caso tiver opcao, guarda o nome do arquivo
+
+    inc di
 
     mov si, di ; SI recebe o endereco atual na string de entrada
     lea di, nomeArquivoEntrada ; DI recebe o endereco do nome do arquivo a ser salvo
@@ -123,12 +140,14 @@ processa_opcao_o	proc	near
     mov cx, 100
     cld
 
-    mov AL, opcaoO
-    repne scasb ; procura '-o '
+    mov ax, opcaoO
+    repne scasb ; procura '-o'
 
     jne fim_sem_opcao_o
 
     ; caso tiver opcao, guarda o nome do arquivo de saída
+
+    inc di
 
     mov si, di ; SI recebe o endereco atual na string de entrada
     lea di, nomeArquivoSaida ; DI recebe o endereco do nome do arquivo a ser salvo
@@ -162,12 +181,14 @@ processa_opcao_n	proc	near
     mov cx, 100
     cld
 
-    mov AL, opcaoN
-    repne scasb ; procura '-n '
+    mov ax, opcaoN
+    repne scasb ; procura '-n'
 
     jne erro_sem_opcao_n
 
     ; caso tiver opcao, guarda o tamanho dos grupos
+
+    inc di
 
     mov si, di ; SI recebe o endereco atual na string de entrada
     lea di, tamanhoGrupoString ; DI recebe o endereco do nome do arquivo a ser salvo
@@ -205,7 +226,7 @@ processa_opcao_ATGC	proc	near
     mov cx, 100
     cld
 
-    mov AL, opcaoA
+    mov ax, opcaoA
     repne scasb ; procura '-a'
     jne processa_opcao_t
     je processa_opcao_atgc_completa
@@ -216,7 +237,7 @@ processa_opcao_ATGC	proc	near
         mov cx, 100
         cld
 
-        mov AL, opcaoT
+        mov ax, opcaoT
         repne scasb ; procura '-t'
         jne processa_opcao_g
         je processa_opcao_atgc_completa
@@ -227,7 +248,7 @@ processa_opcao_ATGC	proc	near
         mov cx, 100
         cld
 
-        mov AL, opcaoG
+        mov ax, opcaoG
         repne scasb ; procura '-g'
         jne processa_opcao_c
         je processa_opcao_atgc_completa
@@ -238,7 +259,7 @@ processa_opcao_ATGC	proc	near
         mov cx, 100
         cld
 
-        mov AL, opcaoC
+        mov ax, opcaoC
         repne scasb ; procura '-c'
         jne processa_opcao_mais
         je processa_opcao_atgc_completa
@@ -249,7 +270,7 @@ processa_opcao_ATGC	proc	near
         mov cx, 100
         cld
 
-        mov AL, opcaoMais
+        mov ax, opcaoMais
         repne scasb ; procura '-+'
         jne erro_sem_opcao_atgc
         je processa_opcao_atgc_completa
@@ -338,7 +359,48 @@ processa_arquivo_entrada	proc	near
 	jmp	final_processa_arquivo_entrada
 
     continua_processa_arquivo_entrada:
+        ; fileHandle = ax
+	    mov	fileHandle, ax
 
+        loop_processa_grupo:
+
+            ;		if ( (ax=fread(ah=0x3f, bx=FileHandle, cx=1, dx=FileBuffer)) ) {
+            ;			printf ("Erro na leitura do arquivo.\r\n");
+            ;			fclose(bx=FileHandle)
+            ;			exit(1);
+            ;		}
+
+            mov	bx, fileHandle
+            mov	ah, 3fh
+            mov	cx, tamanhoGrupo ; n caracteres a serem lidos
+            lea	dx, fileBuffer
+            int	21h
+
+            jnc	verifica_fim_loop_processa_grupo
+
+            lea	bx, msgErroLerArquivo
+            call printf_s
+            mov	al,1
+            jmp	final_processa_arquivo_entrada
+
+        verifica_fim_loop_processa_grupo:
+
+            ; Verifica se terminou o arquivo
+            ;	if (ax==0) {
+            ;		fclose(bx=FileHandle);
+            ;		exit(0);
+            ;	}
+            cmp		ax,0
+            jne		contiua_loop_processa_grupo
+            mov		al,0
+            jmp		final_processa_arquivo_entrada
+
+        contiua_loop_processa_grupo:
+
+            ; agora preciso criar ou abrir o arquivo de output e botar a primeira linha nele
+            ; depois disso preciso iterar pelo file buffer do grupo atual e processar o grupo
+            ;   -> salvar totais para mostrar no resumo
+            ;   -> escrever dados do grupo no arquivo de saida
 
     final_processa_arquivo_entrada:
         .exit
@@ -371,8 +433,12 @@ get_linha_comando	proc	near
 
     rep movsb
 
+    mov	byte ptr es:[di], 0
+
     pop es ; retorna as informações dos registradores de segmentos
     pop ds
+
+    ret
 
 get_linha_comando	endp
 
