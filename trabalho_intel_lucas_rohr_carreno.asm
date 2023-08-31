@@ -39,12 +39,22 @@
     opcaoExtraC equ 'c'
     opcaoExtraMais equ '+'
 
+    opcaoASaida equ 'A'
+    opcaoTSaida equ 'T'
+    opcaoGSaida equ 'G'
+    opcaoCSaida equ 'C'
+    opcaoATSaida equ 'A+T'
+    opcaoGCSaida equ 'G+C'
+
     msgErroOpcaoF db CR, "Erro: Nome do arquivo de entrada nao informado", CR, LF, 0
     msgErroOpcaoN db CR, "Erro: Tamanho dos grupos de bases nitrogenadas nao informado", CR, LF, 0
     msgErroOpcaoATGC db CR, "Erro: Opcao de saida ATGC+ nao informada", CR, LF, 0
     msgErroOpcaoATGCInvalida db CR, "Erro: Opcao de saida ATGC+ invalida", CR, LF, 0
     msgErroAbrirArquivo db CR, "Erro de abertura: o arquivo de entrada informado nao existe", CR, LF, 0
     msgErroLerArquivo db CR, "Erro de leitura: houve um problema ao ler o arquivo de entrada", CR, LF, 0
+
+    msgErroAbrirArquivoSaida db CR, "Erro de abertura: o arquivo de saida informado nao existe", CR, LF, 0
+    msgErroCriarArquivoSaida db CR, "Erro de criacao: erro ao criar arquivo de saida", CR, LF, 0
 
     msgCRLF	db	CR, LF, 0
 
@@ -55,6 +65,9 @@
 
     fileBuffer	db	10000 dup (?)	; Buffer de leitura do arquivo
     fileHandle	dw	0
+    fileSaidaBuffer	db	10000 dup (?)	; Buffer de leitura do arquivo
+    fileSaidaHandle	dw	0
+
     totalBasesArquivo dw 0 ; total de bases nitrogenadas do arquivo, contador
     totalGruposArquivo dw 0 ; total de grupor no arquivo
     totalLinhasArquivo dw 0 ; total de linhas do arquivo
@@ -362,6 +375,48 @@ processa_arquivo_entrada	proc	near
         ; fileHandle = ax
 	    mov	fileHandle, ax
 
+        ; criar arquivo de saida
+
+        ;if (fcreate(FileNameDst)) {
+        ;	fclose(FileHandleSrc);
+        ;	printf("Erro na criacao do arquivo.\r\n")
+        ;	exit(1)
+        ;}
+        ;FileHandleDst = BX
+        lea		dx, nomeArquivoSaida
+        call	fcreate
+        mov		fileSaidaHandle, bx
+        jnc		loop_processa_grupo ; se criou com sucesso, volta no loop para abrir ele
+
+        mov		bx, fileHandle
+        call	fclose ; se houve erro criando o arquivo de saida, fecha o de entrada e encerra
+        lea		bx, msgErroCriarArquivoSaida
+        call	printf_s
+
+        ret
+
+        printa_header_arquivo_saida:
+            ; abrir o arquivo de output
+
+            ; tenta abrir arquivo de saida
+            mov	al, 0
+            lea	dx, nomeArquivoSaida
+            mov	ah, 3dh
+            int	21h
+
+            ; se nao houve erro para abrir, continua
+            jnc	abriu_saida_loop_processa_grupo
+
+            ; se houve erro, printa que o arquivo nao existe e encerra
+            lea	bx, msgErroAbrirArquivoSaida
+            call printf_s
+            mov	al, 1
+            jmp	final_processa_arquivo_entrada
+
+            continua_printa_header_arquivo_saida:
+
+                
+
         loop_processa_grupo:
 
             ;		if ( (ax=fread(ah=0x3f, bx=FileHandle, cx=1, dx=FileBuffer)) ) {
@@ -396,9 +451,27 @@ processa_arquivo_entrada	proc	near
             jmp		final_processa_arquivo_entrada
 
         contiua_loop_processa_grupo:
+            ; abrir o arquivo de output
 
-            ; agora preciso criar ou abrir o arquivo de output e botar a primeira linha nele
+            ; tenta abrir arquivo de saida
+            mov	al, 0
+            lea	dx, nomeArquivoSaida
+            mov	ah, 3dh
+            int	21h
+
+            ; se nao houve erro para abrir, continua
+            jnc	abriu_saida_loop_processa_grupo
+
+            ; se houve erro, printa que o arquivo nao existe e encerra
+            lea	bx, msgErroAbrirArquivoSaida
+            call printf_s
+            mov	al, 1
+            jmp	final_processa_arquivo_entrada
+
+        abriu_saida_loop_processa_grupo:
+
             ; depois disso preciso iterar pelo file buffer do grupo atual e processar o grupo
+            ;   -> preciso primeiro abrir o arquivo de entrada e processar ele (inverter abertura de arquivo)
             ;   -> salvar totais para mostrar no resumo
             ;   -> escrever dados do grupo no arquivo de saida
 
@@ -441,6 +514,30 @@ get_linha_comando	proc	near
     ret
 
 get_linha_comando	endp
+
+;--------------------------------------------------------------------
+;Fun��o Cria o arquivo cujo nome est� no string apontado por DX
+;		boolean fcreate(char *FileName -> DX)
+;Sai:   BX -> handle do arquivo
+;       CF -> 0, se OK
+;--------------------------------------------------------------------
+fcreate	proc	near
+	mov		cx,0
+	mov		ah,3ch
+	int		21h
+	mov		bx,ax
+	ret
+fcreate	endp
+
+;--------------------------------------------------------------------
+;Entra:	BX -> file handle
+;Sai:	CF -> "0" se OK
+;--------------------------------------------------------------------
+fclose	proc	near
+	mov		ah,3eh
+	int		21h
+	ret
+fclose	endp
 
 
 ; Funcao para printar mensagem em tela
