@@ -20,6 +20,7 @@
     tamanhoGrupoString db 5 dup (?)
     tamanhoGrupo dw 0
     escolhaATGC dw 5 dup (?)
+    tamanhoEscolhaATGC dw 5 dup (?)
 
     opcaoF dw "-f"
 
@@ -43,8 +44,8 @@
     opcaoTSaida equ 'T'
     opcaoGSaida equ 'G'
     opcaoCSaida equ 'C'
-    opcaoATSaida equ 'A+T'
-    opcaoGCSaida equ 'G+C'
+    opcaoMaisSaida equ '+'
+    pontoEVirgula equ 59
 
     msgErroOpcaoF db CR, "Erro: Nome do arquivo de entrada nao informado", CR, LF, 0
     msgErroOpcaoN db CR, "Erro: Tamanho dos grupos de bases nitrogenadas nao informado", CR, LF, 0
@@ -55,6 +56,7 @@
 
     msgErroAbrirArquivoSaida db CR, "Erro de abertura: o arquivo de saida informado nao existe", CR, LF, 0
     msgErroCriarArquivoSaida db CR, "Erro de criacao: erro ao criar arquivo de saida", CR, LF, 0
+    msgErroEscreverArquivoSaida db "Erro de escrita: erro ao escrever no arquivo de saida", CR, LF, 0
 
     msgCRLF	db	CR, LF, 0
 
@@ -69,9 +71,11 @@
     fileSaidaHandle	dw	0
 
     totalBasesArquivo dw 0 ; total de bases nitrogenadas do arquivo, contador
-    totalGruposArquivo dw 0 ; total de grupor no arquivo
-    totalLinhasArquivo dw 0 ; total de linhas do arquivo
-    
+    totalGruposArquivo dw 0 ; total de grupos no arquivo
+    totalLinhasArquivo dw 0 ; total de linhas do arquivo (total de CRs + 1)
+
+    stringHeaderSaida db 15 dup (?)
+    tamanhoStringHeaderSaida db 0
 
     ; ---------------------------------------------------------------
 
@@ -324,6 +328,7 @@ processa_opcao_ATGC	proc	near
                 mov es:[di], ax
                 inc bx
                 inc di
+                inc tamanhoEscolhaATGC
 
                 jmp loop_processa_atgc_completa
 
@@ -405,7 +410,7 @@ processa_arquivo_entrada	proc	near
             int	21h
 
             ; se nao houve erro para abrir, continua
-            jnc	abriu_saida_loop_processa_grupo
+            jnc	continua_printa_header_arquivo_saida
 
             ; se houve erro, printa que o arquivo nao existe e encerra
             lea	bx, msgErroAbrirArquivoSaida
@@ -415,7 +420,138 @@ processa_arquivo_entrada	proc	near
 
             continua_printa_header_arquivo_saida:
 
-                
+                lea bx, stringHeaderSaida
+
+                lea di, escolhaATGC ; Inicializa registradores
+                mov cx, tamanhoEscolhaATGC
+                cld
+
+                mov ax, opcaoExtraA
+                repne scasb ; procura 'a'
+
+                jne procura_t_printa_header_arquivo_saida
+
+                ; caso tiver opcao, guarda ela
+
+                mov di, bx
+                mov es:[di], opcaoASaida ; bota A no header
+                inc di ; proxima posicao da linha
+                inc bx
+                mov es:[di], pontoEVirgula ; bota ponto e virgula
+                add tamanhoStringHeaderSaida, 2
+
+                procura_t_printa_header_arquivo_saida:
+
+                    lea di, escolhaATGC ; Inicializa registradores
+                    mov cx, tamanhoEscolhaATGC
+                    cld
+
+                    mov ax, opcaoExtraT
+                    repne scasb ; procura 't'
+
+                    jne procura_c_printa_header_arquivo_saida
+
+                    ; caso tiver opcao, guarda ela
+
+                    mov di, bx
+                    mov es:[di], opcaoTSaida ; bota T no header
+                    inc di ; proxima posicao da linha
+                    inc bx
+                    mov es:[di], pontoEVirgula ; bota ponto e virgula
+                    add tamanhoStringHeaderSaida, 2
+
+                procura_c_printa_header_arquivo_saida:
+
+                    lea di, escolhaATGC ; Inicializa registradores
+                    mov cx, tamanhoEscolhaATGC
+                    cld
+
+                    mov ax, opcaoExtraC
+                    repne scasb ; procura 'c'
+
+                    jne procura_g_printa_header_arquivo_saida
+
+                    ; caso tiver opcao, guarda ela
+
+                    mov di, bx
+                    mov es:[di], opcaoCSaida ; bota C no header
+                    inc di ; proxima posicao da linha
+                    inc bx
+                    mov es:[di], pontoEVirgula ; bota ponto e virgula
+                    add tamanhoStringHeaderSaida, 2
+
+                procura_g_printa_header_arquivo_saida:
+
+                    lea di, escolhaATGC ; Inicializa registradores
+                    mov cx, tamanhoEscolhaATGC
+                    cld
+
+                    mov ax, opcaoExtraG
+                    repne scasb ; procura 'g'
+
+                    jne procura_mais_printa_header_arquivo_saida
+
+                    ; caso tiver opcao, guarda ela
+
+                    mov di, bx
+                    mov es:[di], opcaoGSaida ; bota G no header
+                    inc di ; proxima posicao da linha
+                    inc bx
+                    mov es:[di], pontoEVirgula ; bota ponto e virgula
+                    add tamanhoStringHeaderSaida, 2
+
+                procura_g_printa_header_arquivo_saida:
+
+                    lea di, escolhaATGC ; Inicializa registradores
+                    mov cx, tamanhoEscolhaATGC
+                    cld
+
+                    mov ax, opcaoExtraG
+                    repne scasb ; procura 'g'
+
+                    jne printa_header
+
+                    ; caso tiver opcao, guarda ela
+
+                    mov di, bx
+                    mov es:[di], opcaoASaida ; bota A no header
+                    inc di ; proxima posicao da linha
+                    mov es:[di], opcaoMaisSaida ; bota + no header
+                    inc di ; proxima posicao da linha
+                    mov es:[di], opcaoTSaida ; bota T no header
+                    inc di ; proxima posicao da linha
+                    mov es:[di], pontoEVirgula ; bota ; no header
+
+                    inc di ; 
+                    mov es:[di], opcaoCSaida ; bota C no header
+                    inc di ; proxima posicao da linha
+                    mov es:[di], opcaoMaisSaida ; bota + no header
+                    inc di ; proxima posicao da linha
+                    mov es:[di], opcaoGSaida ; bota G no header
+                    inc di ; proxima posicao da linha
+                    mov es:[di], CR ; bota CR no header
+                    inc di ; proxima posicao da linha
+                    mov es:[di], LF ; bota LF no header
+                    inc di ; proxima posicao da linha
+                    mov es:[di], 0 ; bota 0 como fim
+                    add tamanhoStringHeaderSaida, 9 ; 7 + CR LF
+
+            printa_header:
+                ; escreve o header no arquivo de saida
+                mov		ah, 40h
+                mov		cx, tamanhoStringHeaderSaida
+                mov		stringHeaderSaida, dl
+                lea		dx, stringHeaderSaida
+                int		21h
+
+                jnc	loop_processa_grupo
+
+                mov	bx, fileHandle
+                call fclose ; se houve erro escrevendo no arquivo de saida, fecha o de entrada e encerra
+                lea	bx, msgErroEscreverArquivoSaida
+                call printf_s
+
+                ret
 
         loop_processa_grupo:
 
@@ -431,7 +567,7 @@ processa_arquivo_entrada	proc	near
             lea	dx, fileBuffer
             int	21h
 
-            jnc	verifica_fim_loop_processa_grupo
+            jnc	contiua_loop_processa_grupo
 
             lea	bx, msgErroLerArquivo
             call printf_s
@@ -471,7 +607,7 @@ processa_arquivo_entrada	proc	near
         abriu_saida_loop_processa_grupo:
 
             ; depois disso preciso iterar pelo file buffer do grupo atual e processar o grupo
-            ;   -> preciso primeiro abrir o arquivo de entrada e processar ele (inverter abertura de arquivo)
+            ;   -> preciso primeiro abrir o arquivo de entrada e processar ele - Check
             ;   -> salvar totais para mostrar no resumo
             ;   -> escrever dados do grupo no arquivo de saida
 
