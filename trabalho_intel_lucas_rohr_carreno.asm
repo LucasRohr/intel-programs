@@ -393,6 +393,68 @@ processa_arquivo_entrada	proc	near
         ; fileHandle = ax
 	    mov	fileHandle, ax
 
+        ; contar tamanho do arquivo de entrada para validar o mesmo
+
+         ;		if ( (ax=fread(ah=0x3f, bx=FileHandle, cx=1, dx=FileBuffer)) ) {
+        ;			printf ("Erro na leitura do arquivo.\r\n");
+        ;			fclose(bx=FileHandle)
+        ;			exit(1);
+        ;		}
+
+        mov	bx, fileHandle
+        mov	ah, 3fh
+        mov	cx, 1 ; le caractere por caractere
+        lea	dx, fileBuffer
+        int	21h
+
+        jnc	continua_valida_tamanho_arquivo_entrada
+
+        lea	bx, msgErroLerArquivo
+        call printf_s
+        mov	al,1
+        jmp	final_processa_arquivo_entrada
+
+        continua_valida_tamanho_arquivo_entrada:
+
+            lea bx, fileBuffer
+            mov di, bx
+            
+            loop_processa_file_buffer_tamanho_arquivo:
+                mov dx, es:[di]
+
+                cmp dx, CR
+                je loop_processa_file_buffer_tamanho_arquivo_CR
+
+                cmp dx, LF
+                je loop_processa_file_buffer_tamanho_arquivo_LR
+
+                cmp dx, 0
+                je fim_loop_processa_file_buffer_tamanho_arquivo
+
+                ; se nao for quebra de linha e nem 0, contabiliza
+                inc totalBasesArquivo
+                jmp loop_processa_file_buffer_tamanho_arquivo
+
+                loop_processa_file_buffer_tamanho_arquivo_CR:
+                    inc totalLinhasArquivo
+                    jmp loop_processa_file_buffer_tamanho_arquivo
+            
+                loop_processa_file_buffer_tamanho_arquivo_LF:
+                    jmp loop_processa_file_buffer_tamanho_arquivo
+
+        fim_loop_processa_file_buffer_tamanho_arquivo:
+
+            mov dx, totalBasesArquivo
+
+            cmp dx, tamanhoGrupo
+            jl tamanho_arquivo_invalido_pequeno
+
+            cmp dx, 10000
+            jg tamanho_arquivo_invalido_grande
+
+            jmp continua_valida_tamanho_arquivo_entrada_valido
+
+
         ; criar arquivo de saida
 
         ;if (fcreate(FileNameDst)) {
@@ -522,7 +584,7 @@ processa_arquivo_entrada	proc	near
                     mov ax, opcaoExtraMais
                     repne scasb ; procura '+'
 
-                    jne printa_header
+                    jne finaliza_printa_header_arquivo_saida
 
                     ; caso tiver opcao, guarda ela
 
@@ -541,13 +603,19 @@ processa_arquivo_entrada	proc	near
                     mov es:[di], opcaoMaisSaida ; bota + no header
                     inc di ; proxima posicao da linha
                     mov es:[di], opcaoGSaida ; bota G no header
+                    
+                    add tamanhoStringHeaderSaida, 7
+
+                finaliza_printa_header_arquivo_saida:
                     inc di ; proxima posicao da linha
                     mov es:[di], CR ; bota CR no header
                     inc di ; proxima posicao da linha
                     mov es:[di], LF ; bota LF no header
                     inc di ; proxima posicao da linha
                     mov es:[di], 0 ; bota 0 como fim
-                    add tamanhoStringHeaderSaida, 9 ; 7 + CR LF
+                    add tamanhoStringHeaderSaida, 3
+
+                    jmp printa_header
 
             printa_header:
                 ; escreve o header no arquivo de saida
@@ -644,7 +712,7 @@ processa_arquivo_entrada	proc	near
                     je ignora_loop_processa_file_buffer
 
                     cmp dx, LF
-                    je ignora_linha_loop_processa_file_buffer
+                    je ignora_loop_processa_file_buffer
 
                     cmp dx, 0
                     je escreve_grupo_no_arquivo_saida
@@ -703,11 +771,6 @@ processa_arquivo_entrada	proc	near
                         jmp loop_processa_file_buffer
 
                     ignora_loop_processa_file_buffer:
-                        inc di
-                        jmp loop_processa_file_buffer
-
-                    ignora_linha_loop_processa_file_buffer:
-                        inc totalLinhasArquivo
                         inc di
                         jmp loop_processa_file_buffer
 
@@ -824,6 +887,8 @@ processa_arquivo_entrada	proc	near
                         mov es:[di], LF ; bota LF na linha
                         inc di ; proxima posicao da linha
                         mov es:[di], 0 ; bota 0 como fim
+
+                        add tamanhoStringLinhaDeSaida, 3
 
                         jmp loop_processa_grupo
                 
