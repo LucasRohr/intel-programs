@@ -22,17 +22,17 @@
     escolhaATGC dw 5 dup (?)
     tamanhoEscolhaATGC dw 5 dup (?)
 
-    opcaoF dw "-f"
+    opcaoF dw "f-"
 
-    opcaoO dw "-o"
+    opcaoO dw "o-"
 
-    opcaoN dw "-n"
+    opcaoN dw "n-"
 
-    opcaoA dw "-a"
-    opcaoT dw "-t"
-    opcaoG dw "-g"
-    opcaoC dw "-c"
-    opcaoMais dw "-+"
+    opcaoA dw "a-"
+    opcaoT dw "t-"
+    opcaoG dw "g-"
+    opcaoC dw "c-"
+    opcaoMais dw "+-"
 
     opcaoExtraA equ 'a'
     opcaoExtraT equ 't'
@@ -47,6 +47,8 @@
     opcaoMaisSaida equ '+'
     pontoEVirgula equ 59
 
+    tamanhoMaxArquivo equ 10000
+
     msgErroOpcaoF db CR, "Erro: Nome do arquivo de entrada nao informado", CR, LF, 0
     msgErroOpcaoN db CR, "Erro: Tamanho dos grupos de bases nitrogenadas nao informado", CR, LF, 0
     msgErroOpcaoATGC db CR, "Erro: Opcao de saida ATGC+ nao informada", CR, LF, 0
@@ -59,6 +61,10 @@
     msgErroEscreverArquivoSaida db "Erro de escrita: erro ao escrever no arquivo de saida", CR, LF, 0
 
     msgErroCaractereInvalidoArquivoEntrada db "Erro de leitura: o arquivo de entrada possui um caractere invalido (diferente de ATGC)", CR, LF, 0
+
+    msgArquivoMuitoPequeno db "Erro: o arquivo informado eh muito pequeno", CR, LF, 0
+    msgTamanhoMinArquivo db "Tamanho minimo:", CR, LF, 0
+    msgArquivoMuitoGrande db "Erro: o arquivo informado eh muito grande (mais de 10.000 caracteres)", CR, LF, 0
 
     msgCRLF	db	CR, LF, 0
 
@@ -77,12 +83,14 @@
     totalGruposArquivo dw 0 ; total de grupos no arquivo
     totalLinhasArquivo dw 0 ; total de linhas do arquivo (total de CRs + 1)
 
-    totalBasesA db 0
-    totalBasesT db 0
-    totalBasesC db 0
-    totalBasesG db 0
-    totalBasesAT db 0
-    totalBasesCG db 0
+    indiceFimBaseArquivo dw 0
+
+    totalBasesA dw 0
+    totalBasesT dw 0
+    totalBasesC dw 0
+    totalBasesG dw 0
+    totalBasesAT dw 0
+    totalBasesCG dw 0
 
     stringLinhaDeSaida 	db	50 dup (?) ; linha a ser escrita no arquivo de saida a cada leitura de grupo na entrada
     tamanhoStringLinhaDeSaida dw 0
@@ -93,16 +101,32 @@
     ; ---------------------------------------------------------------
 
     .code ; segmento de codigo
-
-    call get_linha_comando ; le a linha de comando
-
 	.startup
 
-    lea bx, entradaLinhaComando
-    call printf_s
+    ; obtem a string de opcoes digitadas pelo usuario
 
-    lea bx, msgCRLF
-    call printf_s
+    push ds ; salva as informações de segmentos na stack
+    push es
+
+    mov ax, ds ; troca DS <-> ES, para poder usa o MOVSB
+    mov bx, es
+    mov ds, bx
+    mov es, ax
+
+    mov si, 80h ; obtém o tamanho do string e coloca em CX
+    mov ch, 0
+    mov cl, [si]
+
+    mov si, 81h ; inicializa o ponteiro de origem
+
+    lea di, entradaLinhaComando ; inicializa o ponteiro de destino
+
+    rep movsb
+
+    mov	byte ptr es:[di], 0
+
+    pop es ; retorna as informações dos registradores de segmentos
+    pop ds
 
     call processa_opcao_f ; procura e armazena nome do arquivo de entrada ou gera erro
     call processa_opcao_o ; procura e armazena nome do arquivo de  saida ou usa o nome padrao
@@ -131,7 +155,7 @@ processa_opcao_f	proc	near
     cld
 
     mov ax, opcaoF
-    repne scasb ; procura '-f'
+    repne scasw ; procura '-f'
 
     jne erro_sem_opcao_f
 
@@ -142,12 +166,20 @@ processa_opcao_f	proc	near
     mov si, di ; SI recebe o endereco atual na string de entrada
     lea di, nomeArquivoEntrada ; DI recebe o endereco do nome do arquivo a ser salvo
 
+    mov cx, 5
+
     mov	ax, ds ; Ajusta ES=DS para poder usar o MOVSB
 	mov	es, ax
 
-    repe movsb ; copia sting
+    rep movsb ; copia sting
 
     mov	byte ptr es:[di], 0 ; Coloca marca de fim de string
+
+    lea bx, nomeArquivoEntrada
+    call printf_s
+
+    lea bx, msgCRLF
+    call printf_s
 
     ret ; retorna
 
@@ -171,7 +203,7 @@ processa_opcao_o	proc	near
     cld
 
     mov ax, opcaoO
-    repne scasb ; procura '-o'
+    repne scasw ; procura '-o'
 
     jne fim_sem_opcao_o
 
@@ -182,10 +214,10 @@ processa_opcao_o	proc	near
     mov si, di ; SI recebe o endereco atual na string de entrada
     lea di, nomeArquivoSaida ; DI recebe o endereco do nome do arquivo a ser salvo
 
-    mov	ax,ds ; Ajusta ES=DS para poder usar o MOVSB
-	mov	es,ax
+    mov	ax, ds ; Ajusta ES=DS para poder usar o MOVSB
+	mov	es, ax
 
-    repe movsb ; move a string de entrada até encontrar 0
+    rep movsb ; move a string de entrada até encontrar 0
 
     mov	byte ptr es:[di], 0 ; Coloca marca de fim de string
 
@@ -195,6 +227,9 @@ processa_opcao_o	proc	near
         lea si, nomePadraoArquivoSaida ; SI recebe o endereco do nome padrao
         lea di, nomeArquivoSaida ; DI recebe o endereco do nome do arquivo a ser salvo
         mov cx, 6 ; tamanho do nome padrao
+
+        mov	ax, ds ; Ajusta ES=DS para poder usar o MOVSB
+	    mov	es, ax
 
         rep movsb
 
@@ -212,7 +247,7 @@ processa_opcao_n	proc	near
     cld
 
     mov ax, opcaoN
-    repne scasb ; procura '-n'
+    repne scasw ; procura '-n'
 
     jne erro_sem_opcao_n
 
@@ -226,9 +261,9 @@ processa_opcao_n	proc	near
     mov	ax,ds ; Ajusta ES=DS para poder usar o MOVSB
 	mov	es,ax
 
-    repe movsb ; move a string de entrada até encontrar 0
+    rep movsb ; move a string de entrada até encontrar 0
 
-    mov	byte ptr es:[di], 0 ; Coloca marca de fim de string
+    mov byte ptr es:[di], 0 ; Coloca marca de fim de string
 
     lea bx, tamanhoGrupoString
 	call atoi ; ax = atoi(tamanhoGrupoString)
@@ -257,7 +292,7 @@ processa_opcao_ATGC	proc	near
     cld
 
     mov ax, opcaoA
-    repne scasb ; procura '-a'
+    repne scasw ; procura '-a'
     jne processa_opcao_t
     je processa_opcao_atgc_completa
 
@@ -346,7 +381,7 @@ processa_opcao_ATGC	proc	near
                 jmp loop_processa_atgc_completa
 
         fim_opcao_atgc:
-            mov	byte ptr es:[di], 0 ; Coloca marca de fim de string
+            mov byte ptr es:[di], 0 ; Coloca marca de fim de string
 
             ret
 
@@ -407,14 +442,16 @@ processa_arquivo_entrada	proc	near
         lea	dx, fileBuffer
         int	21h
 
-        jnc	continua_valida_tamanho_arquivo_entrada
+        jnc	valida_tamanho_arquivo_entrada
 
         lea	bx, msgErroLerArquivo
         call printf_s
         mov	al,1
         jmp	final_processa_arquivo_entrada
 
-        continua_valida_tamanho_arquivo_entrada:
+        valida_tamanho_arquivo_entrada:
+            mov totalBasesArquivo, 0
+            mov totalLinhasArquivo, 0
 
             lea bx, fileBuffer
             mov di, bx
@@ -426,7 +463,7 @@ processa_arquivo_entrada	proc	near
                 je loop_processa_file_buffer_tamanho_arquivo_CR
 
                 cmp dx, LF
-                je loop_processa_file_buffer_tamanho_arquivo_LR
+                je loop_processa_file_buffer_tamanho_arquivo_LF
 
                 cmp dx, 0
                 je fim_loop_processa_file_buffer_tamanho_arquivo
@@ -449,31 +486,51 @@ processa_arquivo_entrada	proc	near
             cmp dx, tamanhoGrupo
             jl tamanho_arquivo_invalido_pequeno
 
-            cmp dx, 10000
+            cmp dx, tamanhoMaxArquivo
             jg tamanho_arquivo_invalido_grande
 
             jmp continua_valida_tamanho_arquivo_entrada_valido
 
+            tamanho_arquivo_invalido_pequeno:
+                lea	bx, msgArquivoMuitoPequeno
+                call printf_s
 
-        ; criar arquivo de saida
+                jmp	final_processa_arquivo_entrada
 
-        ;if (fcreate(FileNameDst)) {
-        ;	fclose(FileHandleSrc);
-        ;	printf("Erro na criacao do arquivo.\r\n")
-        ;	exit(1)
-        ;}
-        ;FileHandleDst = BX
-        lea		dx, nomeArquivoSaida
-        call	fcreate
-        mov		fileSaidaHandle, bx
-        jnc		loop_processa_grupo ; se criou com sucesso, volta no loop para abrir ele
+            tamanho_arquivo_invalido_grande:
+                lea	bx, msgArquivoMuitoGrande
+                call printf_s
+                jmp	final_processa_arquivo_entrada
 
-        mov		bx, fileHandle
-        call	fclose ; se houve erro criando o arquivo de saida, fecha o de entrada e encerra
-        lea		bx, msgErroCriarArquivoSaida
-        call	printf_s
+        continua_valida_tamanho_arquivo_entrada_valido:
+            mov dx, totalBasesArquivo
+            mov indiceFimBaseArquivo, dx
 
-        ret
+            mov dx, tamanhoGrupo
+            sub indiceFimBaseArquivo, dx
+
+            mov dx, indiceFimBaseArquivo
+            mov totalGruposArquivo, dx
+
+            ; criar arquivo de saida
+
+            ;if (fcreate(FileNameDst)) {
+            ;	fclose(FileHandleSrc);
+            ;	printf("Erro na criacao do arquivo.\r\n")
+            ;	exit(1)
+            ;}
+            ;FileHandleDst = BX
+            lea		dx, nomeArquivoSaida
+            call	fcreate
+            mov		fileSaidaHandle, bx
+            jnc		loop_processa_grupo ; se criou com sucesso, volta no loop para abrir ele
+
+            mov		bx, fileHandle
+            call	fclose ; se houve erro criando o arquivo de saida, fecha o de entrada e encerra
+            lea		bx, msgErroCriarArquivoSaida
+            call	printf_s
+
+            ret
 
         printa_header_arquivo_saida:
             ; abrir o arquivo de output
@@ -664,6 +721,11 @@ processa_arquivo_entrada	proc	near
 
             verifica_fim_loop_processa_grupo:
 
+                dec indiceFimBaseArquivo
+
+                cmp indiceFimBaseArquivo, 0 ; se chegou no fim de quantos grupos vai ter, acaba
+                je final_processa_arquivo_entrada
+
                 ; Verifica se terminou o arquivo
                 ;	if (ax==0) {
                 ;		fclose(bx=FileHandle);
@@ -699,8 +761,6 @@ processa_arquivo_entrada	proc	near
                 ;   -> salvar totais para mostrar no resumo - Check
                 ;   -> escrever dados do grupo no arquivo de saida
 
-                inc totalGruposArquivo ; contabiliza grupo
-
                 lea bx, fileBuffer
                 mov di, bx
                 
@@ -729,7 +789,7 @@ processa_arquivo_entrada	proc	near
                     cmp dx, opcaoGSaida
                     je processa_file_buffer_G
 
-                    mov bx, msgErroCaractereInvalidoArquivoEntrada
+                    lea bx, msgErroCaractereInvalidoArquivoEntrada
                     call printf_s
 
                     jmp final_processa_arquivo_entrada
@@ -792,7 +852,8 @@ processa_arquivo_entrada	proc	near
                     ; caso tiver opcao A, guarda total
 
                     mov di, bx
-                    mov es:[di], totalBasesA ; bota total de bases A na linha
+                    mov dx, totalBasesA
+                    mov es:[di], dx ; bota total de bases A na linha
                     inc di ; proxima posicao da linha
                     inc bx
                     mov es:[di], pontoEVirgula ; bota ponto e virgula
@@ -812,7 +873,8 @@ processa_arquivo_entrada	proc	near
                         ; caso tiver opcao T, guarda total
 
                         mov di, bx
-                        mov es:[di], totalBasesT ; bota total de bases T na linha
+                        mov dx, totalBasesT
+                        mov es:[di], dx ; bota total de bases T na linha
                         inc di ; proxima posicao da linha
                         inc bx
                         mov es:[di], pontoEVirgula ; bota ponto e virgula
@@ -832,7 +894,8 @@ processa_arquivo_entrada	proc	near
                         ; caso tiver opcao C, guarda total
 
                         mov di, bx
-                        mov es:[di], totalBasesC ; bota total de bases C na linha
+                        mov dx, totalBasesC
+                        mov es:[di], dx ; bota total de bases C na linha
                         inc di ; proxima posicao da linha
                         inc bx
                         mov es:[di], pontoEVirgula ; bota ponto e virgula
@@ -852,7 +915,8 @@ processa_arquivo_entrada	proc	near
                         ; caso tiver opcao G, guarda total
 
                         mov di, bx
-                        mov es:[di], totalBasesG ; bota total de bases G na linha
+                        mov dx, totalBasesG
+                        mov es:[di], dx ; bota total de bases G na linha
                         inc di ; proxima posicao da linha
                         inc bx
                         mov es:[di], pontoEVirgula ; bota ponto e virgula
@@ -872,11 +936,13 @@ processa_arquivo_entrada	proc	near
                         ; caso tiver opcao +, guarda total
 
                         mov di, bx
-                        mov es:[di], totalBasesAT ; bota total de bases AT na linha
+                        mov dx, totalBasesAT
+                        mov es:[di], dx ; bota total de bases AT na linha
                         inc di ; proxima posicao da linha
                         mov es:[di], pontoEVirgula ; bota ponto e virgula
                         inc di ; proxima posicao da linha
-                        mov es:[di], totalBasesCG ; bota total de bases CG na linha
+                        mov dx, totalBasesCG
+                        mov es:[di], dx ; bota total de bases CG na linha
                         
                         add tamanhoStringLinhaDeSaida, 4
 
@@ -900,38 +966,6 @@ processa_arquivo_entrada	endp
 
 
 ; ========== Funcoes default de uso geral =============
-
-; Funcao get_linha_comando para obter o que foi digitado pelo usuario
-; na linha de comando e salvo em memoria essa string
-
-get_linha_comando	proc	near
-
-	push ds ; salva as informações de segmentos na stack
-    push es
-
-    mov ax, ds ; troca DS <-> ES, para poder usa o MOVSB
-    mov bx, es
-    mov ds, bx
-    mov es, ax
-
-    mov si, 80h ; obtém o tamanho do string e coloca em CX
-    mov ch, 0
-    mov cl, [si]
-
-    mov si, 81h ; inicializa o ponteiro de origem
-
-    lea di, entradaLinhaComando ; inicializa o ponteiro de destino
-
-    rep movsb
-
-    mov	byte ptr es:[di], 0
-
-    pop es ; retorna as informações dos registradores de segmentos
-    pop ds
-
-    ret
-
-get_linha_comando	endp
 
 ;--------------------------------------------------------------------
 ;Fun��o Cria o arquivo cujo nome est� no string apontado por DX
