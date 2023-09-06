@@ -173,7 +173,7 @@ processa_opcao_f	proc	near
             cmp dl, 'f'
             je continua_processa_opcao_f_informada
 
-            jmp erro_sem_opcao_f
+            jmp loop_busca_opcao_f
 
     continua_processa_opcao_f_informada:
 
@@ -250,7 +250,7 @@ processa_opcao_o	proc	near
             cmp dl, 'o'
             je continua_processa_opcao_o_informada
 
-            jmp fim_sem_opcao_o
+            jmp loop_busca_opcao_o
 
     continua_processa_opcao_o_informada:
         ; caso tiver opcao, guarda o nome do arquivo de saída
@@ -280,15 +280,7 @@ processa_opcao_o	proc	near
             jmp loop_guarda_opcao_o
 
             fim_loop_guarda_opcao_o:
-
                 mov	byte ptr es:[di], 0 ; Coloca marca de fim de string
-
-                lea	bx, nomeArquivoSaida
-		        call printf_s
-
-                lea	bx, msgCRLF
-		        call printf_s
-
                 ret ; retorna
 
         fim_sem_opcao_o:
@@ -303,12 +295,6 @@ processa_opcao_o	proc	near
 
             mov	byte ptr es:[di], 0
 
-            lea	bx, nomeArquivoSaida
-		    call printf_s
-
-            lea	bx, msgCRLF
-		    call printf_s
-
             ret ; retorna
 
 processa_opcao_o	endp
@@ -318,43 +304,79 @@ processa_opcao_o	endp
 
 processa_opcao_n	proc	near
 
+    mov	ax, ds ; Ajusta ES=DS
+	mov	es, ax
+
     lea di, entradaLinhaComando ; Inicializa registradores
-    mov cx, 100
-    cld
 
-    mov ax, opcaoN
-    repne scasw ; procura '-n'
+    loop_busca_opcao_n:
+        mov dl, es:[di]
 
-    jne erro_sem_opcao_n
+        cmp dl, CR
+        je erro_sem_opcao_n
 
-    ; caso tiver opcao, guarda o tamanho dos grupos
+        cmp dl, 0
+        je erro_sem_opcao_n
 
-    inc di
+        cmp dl, '-'
+        je continua_loop_busca_opcao_n
 
-    mov si, di ; SI recebe o endereco atual na string de entrada
-    lea di, tamanhoGrupoString ; DI recebe o endereco do nome do arquivo a ser salvo
+        inc di
+        jmp loop_busca_opcao_n
 
-    mov	ax,ds ; Ajusta ES=DS para poder usar o MOVSB
-	mov	es,ax
+        continua_loop_busca_opcao_n:
+            inc di
+            mov dl, es:[di]
 
-    rep movsb ; move a string de entrada até encontrar 0
+            cmp dl, 'n'
+            je continua_processa_opcao_n_informada
 
-    mov byte ptr es:[di], 0 ; Coloca marca de fim de string
+            jmp loop_busca_opcao_n
 
-    lea bx, tamanhoGrupoString
-	call atoi ; ax = atoi(tamanhoGrupoString)
+    continua_processa_opcao_n_informada:
+        ; caso tiver opcao, guarda o tamanho dos grupos
 
-    mov tamanhoGrupo, ax ; salva tamanho do grupo como valor hexa
+        inc di
 
-    ret ; retorna
+        mov si, di ; SI recebe o endereco atual na string de entrada
+        inc si
+        lea di, tamanhoGrupoString ; DI recebe o endereco do nome do arquivo a ser salvo
 
-    erro_sem_opcao_n:
-        lea	bx, msgErroOpcaoN
-		call printf_s
+       loop_guarda_opcao_n:
+            mov dl, es:[si]
 
-        mov temErroLinhaDeComando, 1
+            cmp dl, CR
+            je fim_loop_guarda_opcao_n
 
-        ret
+            cmp dl, 0
+            je fim_loop_guarda_opcao_n
+
+            cmp dl, ' '
+            je fim_loop_guarda_opcao_n
+
+            mov es:[di], dl
+
+            inc si
+            inc di
+            jmp loop_guarda_opcao_n
+
+            fim_loop_guarda_opcao_n:
+                mov	byte ptr es:[di], 0 ; Coloca marca de fim de string
+
+                lea bx, tamanhoGrupoString
+                call atoi ; ax = atoi(tamanhoGrupoString)
+
+                mov tamanhoGrupo, ax ; salva tamanho do grupo como valor hexa
+
+                ret ; retorna
+
+        erro_sem_opcao_n:
+            lea	bx, msgErroOpcaoN
+            call printf_s
+
+            mov temErroLinhaDeComando, 1
+
+            ret
 
 processa_opcao_n	endp
 
@@ -363,94 +385,167 @@ processa_opcao_n	endp
 
 processa_opcao_ATGC	proc	near
 
+    mov	ax, ds ; Ajusta ES=DS
+	mov	es, ax
+
     lea di, entradaLinhaComando ; Inicializa registradores
-    mov cx, 100
-    cld
 
-    mov ax, opcaoA
-    repne scasw ; procura '-a'
-    jne processa_opcao_t
-    je processa_opcao_atgc_completa
+    loop_busca_opcao_a:
+        mov dl, es:[di]
 
-    processa_opcao_t:
+        cmp dl, CR
+        je loop_busca_opcao_t
 
-        lea di, entradaLinhaComando ; Inicializa registradores
-        mov cx, 100
-        cld
+        cmp dl, 0
+        je loop_busca_opcao_t
 
-        mov ax, opcaoT
-        repne scasb ; procura '-t'
-        jne processa_opcao_g
-        je processa_opcao_atgc_completa
+        cmp dl, '-'
+        je continua_loop_busca_opcao_a
 
-    processa_opcao_g:
+        inc di
+        jmp loop_busca_opcao_a
 
-        lea di, entradaLinhaComando ; Inicializa registradores
-        mov cx, 100
-        cld
+        continua_loop_busca_opcao_a:
+            inc di
+            mov dl, es:[di]
 
-        mov ax, opcaoG
-        repne scasb ; procura '-g'
-        jne processa_opcao_c
-        je processa_opcao_atgc_completa
+            cmp dl, 'a'
+            je processa_opcao_atgc_completa
 
-    processa_opcao_c:
+            jmp loop_busca_opcao_a
 
-        lea di, entradaLinhaComando ; Inicializa registradores
-        mov cx, 100
-        cld
+    loop_busca_opcao_t:
+        mov dl, es:[di]
 
-        mov ax, opcaoC
-        repne scasb ; procura '-c'
-        jne processa_opcao_mais
-        je processa_opcao_atgc_completa
+        cmp dl, CR
+        je loop_busca_opcao_g
 
-    processa_opcao_mais:
+        cmp dl, 0
+        je loop_busca_opcao_g
 
-        lea di, entradaLinhaComando ; Inicializa registradores
-        mov cx, 100
-        cld
+        cmp dl, '-'
+        je continua_loop_busca_opcao_t
 
-        mov ax, opcaoMais
-        repne scasb ; procura '-+'
-        jne erro_sem_opcao_atgc
-        je processa_opcao_atgc_completa
+        inc di
+        jmp loop_busca_opcao_t
+
+        continua_loop_busca_opcao_t:
+            inc di
+            mov dl, es:[di]
+
+            cmp dl, 't'
+            je processa_opcao_atgc_completa
+
+            jmp loop_busca_opcao_t
+
+    loop_busca_opcao_g:
+        mov dl, es:[di]
+
+        cmp dl, CR
+        je loop_busca_opcao_c
+
+        cmp dl, 0
+        je loop_busca_opcao_c
+
+        cmp dl, '-'
+        je continua_loop_busca_opcao_g
+
+        inc di
+        jmp loop_busca_opcao_g
+
+        continua_loop_busca_opcao_g:
+            inc di
+            mov dl, es:[di]
+
+            cmp dl, 'g'
+            je processa_opcao_atgc_completa
+
+            jmp loop_busca_opcao_g
+
+    loop_busca_opcao_c:
+        mov dl, es:[di]
+
+        cmp dl, CR
+        je loop_busca_opcao_mais
+
+        cmp dl, 0
+        je loop_busca_opcao_mais
+
+        cmp dl, '-'
+        je continua_loop_busca_opcao_c
+
+        inc di
+        jmp loop_busca_opcao_c
+
+        continua_loop_busca_opcao_c:
+            inc di
+            mov dl, es:[di]
+
+            cmp dl, 'c'
+            je processa_opcao_atgc_completa
+
+            jmp loop_busca_opcao_c
+
+    loop_busca_opcao_mais:
+        mov dl, es:[di]
+
+        cmp dl, CR
+        je erro_sem_opcao_atgc
+
+        cmp dl, 0
+        je erro_sem_opcao_atgc
+
+        cmp dl, '-'
+        je continua_loop_busca_opcao_mais
+
+        inc di
+        jmp loop_busca_opcao_mais
+
+        continua_loop_busca_opcao_mais:
+            inc di
+            mov dl, es:[di]
+
+            cmp dl, '+'
+            je processa_opcao_atgc_completa
+
+            jmp loop_busca_opcao_mais
 
     processa_opcao_atgc_completa:
-        inc di ; comeca o loop do proximo char, pois tem o -
-        mov bx, di
-
-        mov	ax, escolhaATGC ; passar endereco
-	    mov	es, ax
-
-        mov ax, [bx]
-        mov	escolhaATGC, ax
+        mov si, di ; SI recebe o endereco atual na string de entrada
+        lea di, escolhaATGC ; DI recebe o endereco das opcoes ATGE a serem salvas
 
         loop_processa_atgc_completa:
-            cmp byte ptr[bx], ' '
+            mov dl, es:[si]
+
+            cmp dl, ' '
             je fim_opcao_atgc
 
-            cmp byte ptr[bx], opcaoExtraA
+            cmp dl, 0
+            je fim_opcao_atgc
+
+            cmp dl, CR
+            je fim_opcao_atgc
+
+            cmp dl, opcaoExtraA
             je salva_opcao_extra_atgc
 
-            cmp byte ptr[bx], opcaoExtraT
+            cmp dl, opcaoExtraT
             je salva_opcao_extra_atgc
 
-            cmp byte ptr[bx], opcaoExtraG
+            cmp dl, opcaoExtraG
             je salva_opcao_extra_atgc
 
-            cmp byte ptr[bx], opcaoExtraC
+            cmp dl, opcaoExtraC
             je salva_opcao_extra_atgc
 
-            cmp byte ptr[bx], opcaoExtraMais
+            cmp dl, opcaoExtraMais
             je salva_opcao_extra_atgc
 
             jne fim_opcao_atgc_invalida
 
             salva_opcao_extra_atgc:
-                mov ax, [bx]
-                mov es:[di], ax
-                inc bx
+                mov es:[di], dl ; salva opcao que esta no dl
+                inc si
                 inc di
                 inc tamanhoEscolhaATGC
 
@@ -459,10 +554,15 @@ processa_opcao_ATGC	proc	near
         fim_opcao_atgc:
             mov byte ptr es:[di], 0 ; Coloca marca de fim de string
 
+            lea bx, escolhaATGC
+            call printf_s
+
+            lea bx, msgCRLF
+            call printf_s
+
             ret
 
     fim_opcao_atgc_invalida:
-
         lea	bx, msgErroOpcaoATGCInvalida
 		call printf_s
 
@@ -1108,8 +1208,9 @@ atoi	proc near
 		
 atoi_2:
 		; while (*S!='\0') {
-		cmp	byte ptr[bx], 0
-		jz	atoi_1
+		mov		dl,[bx]
+		cmp		dl,0
+		je		atoi_1
 
 		; 	A = 10 * A
 		mov	cx,10
