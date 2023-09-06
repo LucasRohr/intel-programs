@@ -15,24 +15,21 @@
 
     entradaLinhaComando db 100 dup (?) ; reserva espaco para entrada da linha de comando
 
+    opcaoF dw "f-"
+    opcaoO dw "o-"
+    opcaoN dw "n-"
+    opcaoA dw "a-"
+    opcaoT dw "t-"
+    opcaoG dw "g-"
+    opcaoC dw "c-"
+    opcaoMais dw "+-"
+
     nomeArquivoEntrada db 50 dup (?)
     nomeArquivoSaida db 50 dup (?)
     tamanhoGrupoString db 5 dup (?)
     tamanhoGrupo dw 0
     escolhaATGC dw 5 dup (?)
     tamanhoEscolhaATGC dw 5 dup (?)
-
-    opcaoF dw "f-"
-
-    opcaoO dw "o-"
-
-    opcaoN dw "n-"
-
-    opcaoA dw "a-"
-    opcaoT dw "t-"
-    opcaoG dw "g-"
-    opcaoC dw "c-"
-    opcaoMais dw "+-"
 
     opcaoExtraA equ 'a'
     opcaoExtraT equ 't'
@@ -68,7 +65,7 @@
 
     msgCRLF	db	CR, LF, 0
 
-    nomePadraoArquivoSaida	db	"a.out", 0
+    nomePadraoArquivoSaida	db	"a.out"
     temErroLinhaDeComando db 0
 
     ; Variaveis para guardar dados do arquivo de entrada
@@ -149,47 +146,76 @@
 ; Funcao para processar o nome do arquivo de entrada na linha de comando lida
 
 processa_opcao_f	proc	near
-
-    lea di, entradaLinhaComando ; Inicializa registradores
-    mov cx, 100
-    cld
-
-    mov ax, opcaoF
-    repne scasw ; procura '-f'
-
-    jne erro_sem_opcao_f
-
-    ; caso tiver opcao, guarda o nome do arquivo
-
-    inc di
-
-    mov si, di ; SI recebe o endereco atual na string de entrada
-    lea di, nomeArquivoEntrada ; DI recebe o endereco do nome do arquivo a ser salvo
-
-    mov cx, 5
-
-    mov	ax, ds ; Ajusta ES=DS para poder usar o MOVSB
+    mov	ax, ds ; Ajusta ES=DS
 	mov	es, ax
 
-    rep movsb ; copia sting
+    lea di, entradaLinhaComando ; Inicializa registradores
 
-    mov	byte ptr es:[di], 0 ; Coloca marca de fim de string
+    loop_busca_opcao_f:
+        mov dl, es:[di]
 
-    lea bx, nomeArquivoEntrada
-    call printf_s
+        cmp dl, CR
+        je erro_sem_opcao_f
 
-    lea bx, msgCRLF
-    call printf_s
+        cmp dl, 0
+        je erro_sem_opcao_f
 
-    ret ; retorna
+        cmp dl, '-'
+        je continua_loop_busca_opcao_f
 
-    erro_sem_opcao_f:
-        lea	bx, msgErroOpcaoF
-		call printf_s
+        inc di
+        jmp loop_busca_opcao_f
 
-        mov temErroLinhaDeComando, 1
+        continua_loop_busca_opcao_f:
+            inc di
+            mov dl, es:[di]
 
-        ret
+            cmp dl, 'f'
+            je continua_processa_opcao_f_informada
+
+            jmp erro_sem_opcao_f
+
+    continua_processa_opcao_f_informada:
+
+        ; caso tiver opcao, guarda o nome do arquivo
+
+        inc di
+
+        mov si, di ; SI recebe o endereco atual na string de entrada
+        inc si
+        lea di, nomeArquivoEntrada ; DI recebe o endereco do nome do arquivo a ser salvo
+
+        loop_guarda_opcao_f:
+            mov dl, es:[si]
+
+            cmp dl, CR
+            je fim_loop_guarda_opcao_f
+
+            cmp dl, 0
+            je fim_loop_guarda_opcao_f
+
+            cmp dl, ' '
+            je fim_loop_guarda_opcao_f
+
+            mov es:[di], dl
+
+            inc si
+            inc di
+            jmp loop_guarda_opcao_f
+
+            fim_loop_guarda_opcao_f:
+
+                mov	byte ptr es:[di], 0 ; Coloca marca de fim de string
+
+                ret ; retorna
+
+        erro_sem_opcao_f:
+            lea	bx, msgErroOpcaoF
+            call printf_s
+
+            mov temErroLinhaDeComando, 1
+
+            ret
 
 processa_opcao_f	endp
 
@@ -197,43 +223,93 @@ processa_opcao_f	endp
 ; Funcao para processar o nome do arquivo de saída na linha de comando lida
 
 processa_opcao_o	proc	near
-
-    lea di, entradaLinhaComando ; Inicializa registradores
-    mov cx, 100
-    cld
-
-    mov ax, opcaoO
-    repne scasw ; procura '-o'
-
-    jne fim_sem_opcao_o
-
-    ; caso tiver opcao, guarda o nome do arquivo de saída
-
-    inc di
-
-    mov si, di ; SI recebe o endereco atual na string de entrada
-    lea di, nomeArquivoSaida ; DI recebe o endereco do nome do arquivo a ser salvo
-
-    mov	ax, ds ; Ajusta ES=DS para poder usar o MOVSB
+    mov	ax, ds ; Ajusta ES=DS
 	mov	es, ax
 
-    rep movsb ; move a string de entrada até encontrar 0
+    lea di, entradaLinhaComando ; Inicializa registradores
 
-    mov	byte ptr es:[di], 0 ; Coloca marca de fim de string
+    loop_busca_opcao_o:
+        mov dl, es:[di]
 
-    ret ; retorna
+        cmp dl, CR
+        je fim_sem_opcao_o
 
-    fim_sem_opcao_o:
-        lea si, nomePadraoArquivoSaida ; SI recebe o endereco do nome padrao
+        cmp dl, 0
+        je fim_sem_opcao_o
+
+        cmp dl, '-'
+        je continua_loop_busca_opcao_o
+
+        inc di
+        jmp loop_busca_opcao_o
+
+        continua_loop_busca_opcao_o:
+            inc di
+            mov dl, es:[di]
+
+            cmp dl, 'o'
+            je continua_processa_opcao_o_informada
+
+            jmp fim_sem_opcao_o
+
+    continua_processa_opcao_o_informada:
+        ; caso tiver opcao, guarda o nome do arquivo de saída
+
+        inc di
+
+        mov si, di ; SI recebe o endereco atual na string de entrada
+        inc si
         lea di, nomeArquivoSaida ; DI recebe o endereco do nome do arquivo a ser salvo
-        mov cx, 6 ; tamanho do nome padrao
 
-        mov	ax, ds ; Ajusta ES=DS para poder usar o MOVSB
-	    mov	es, ax
+        loop_guarda_opcao_o:
+            mov dl, es:[si]
 
-        rep movsb
+            cmp dl, CR
+            je fim_loop_guarda_opcao_o
 
-        ret ; retorna
+            cmp dl, 0
+            je fim_loop_guarda_opcao_o
+
+            cmp dl, ' '
+            je fim_loop_guarda_opcao_o
+
+            mov es:[di], dl
+
+            inc si
+            inc di
+            jmp loop_guarda_opcao_o
+
+            fim_loop_guarda_opcao_o:
+
+                mov	byte ptr es:[di], 0 ; Coloca marca de fim de string
+
+                lea	bx, nomeArquivoSaida
+		        call printf_s
+
+                lea	bx, msgCRLF
+		        call printf_s
+
+                ret ; retorna
+
+        fim_sem_opcao_o:
+            lea si, nomePadraoArquivoSaida ; SI recebe o endereco do nome padrao
+            lea di, nomeArquivoSaida ; DI recebe o endereco do nome do arquivo a ser salvo
+            mov cx, 5 ; tamanho do nome padrao
+
+            mov	ax, ds ; Ajusta ES=DS para poder usar o MOVSB
+            mov	es, ax
+
+            rep movsb
+
+            mov	byte ptr es:[di], 0
+
+            lea	bx, nomeArquivoSaida
+		    call printf_s
+
+            lea	bx, msgCRLF
+		    call printf_s
+
+            ret ; retorna
 
 processa_opcao_o	endp
 
@@ -408,6 +484,9 @@ processa_opcao_ATGC	endp
 ; Funcao para processar o arquivo de entrada com base no que foi fornecido na linha de comando
 
 processa_arquivo_entrada	proc	near
+
+    mov	ax, ds ; Ajusta ES=DS
+	mov	es, ax
 
     ; abre arquivo de entrada
     mov	al, 0
