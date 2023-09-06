@@ -95,6 +95,19 @@
     stringHeaderSaida db 15 dup (?)
     tamanhoStringHeaderSaida dw 0
 
+    ; Variaveis para o resumo em tela
+
+    msgInfosDasOpcoes db CR, LF, "== Informacoes das opcoes fornecidas ==", CR, LF, 0
+    msgNomeArquivoEntrada db "-> Nome do arquivo de entrada:", CR, LF, 0
+    msgNomeArquivoSaida db "-> Nome do arquivo de saida:", CR, LF, 0
+    msgTamanhoGrupos db "-> Tamanho dos grupos de bases:", CR, LF, 0
+    msgOpcoesATGC db "-> Opcoes ATGC:", CR, LF, 0
+
+    msgInfosDaEntrada db CR, LF, "== Informacoes do arquivo de entrada ==", CR, LF, 0
+    msgNumeroDeBases  db "-> Total de bases no arquivo de entrada:", CR, LF, 0
+    msgNumeroDeGrupos  db "-> Total de grupos no arquivo de entrada:", CR, LF, 0
+    msgNumeroDeLinhas  db "-> Total de linhas no arquivo de entrada:", CR, LF, 0
+
     ; ---------------------------------------------------------------
 
     .code ; segmento de codigo
@@ -869,6 +882,7 @@ processa_arquivo_entrada	proc	near
             mov totalBasesG, 0
             mov totalBasesAT, 0
             mov totalBasesCG, 0
+            mov tamanhoStringLinhaDeSaida, 0
 
             ;		if ( (ax=fread(ah=0x3f, bx=FileHandle, cx=1, dx=FileBuffer)) ) {
             ;			printf ("Erro na leitura do arquivo.\r\n");
@@ -893,7 +907,7 @@ processa_arquivo_entrada	proc	near
                 dec indiceFimBaseArquivo
 
                 cmp indiceFimBaseArquivo, 0 ; se chegou no fim de quantos grupos vai ter, acaba
-                je final_processa_arquivo_entrada
+                je final_resumo_processa_arquivo_entrada
 
                 ; Verifica se terminou o arquivo
                 ;	if (ax==0) {
@@ -903,7 +917,7 @@ processa_arquivo_entrada	proc	near
                 cmp		ax,0
                 jne		continua_loop_processa_grupo
                 mov		al,0
-                jmp		final_processa_arquivo_entrada
+                jmp		final_resumo_processa_arquivo_entrada
 
             continua_loop_processa_grupo:
                 ; abrir o arquivo de output
@@ -1005,126 +1019,149 @@ processa_arquivo_entrada	proc	near
                 escreve_grupo_no_arquivo_saida:
                     ; escrever dados do grupo no arquivo de saida
 
-                    lea bx, stringLinhaDeSaida
+                    lea si, stringLinhaDeSaida
 
                     lea di, escolhaATGC ; Inicializa registradores
                     mov cx, tamanhoEscolhaATGC
                     cld
 
-                    mov ax, opcaoExtraA
+                    mov al, opcaoExtraA
                     repne scasb ; procura 'a'
 
                     jne procura_t_escreve_grupo_no_arquivo_saida
 
                     ; caso tiver opcao A, guarda total
 
-                    mov di, bx
                     mov dx, totalBasesA
-                    mov es:[di], dx ; bota total de bases A na linha
-                    inc di ; proxima posicao da linha
-                    inc bx
-                    mov es:[di], pontoEVirgula ; bota ponto e virgula
+                    add dx, 48 ; soma 48 no total para ser lido como char ASCII
+
+                    mov es:[si], dx ; bota total de bases A na linha
+                    inc si ; proxima posicao da linha
+                    mov es:[si], pontoEVirgula ; bota ponto e virgula
+                    inc si ; proxima posicao da linha
                     add tamanhoStringLinhaDeSaida, 2
 
                     procura_t_escreve_grupo_no_arquivo_saida:
-
                         lea di, escolhaATGC ; Inicializa registradores
                         mov cx, tamanhoEscolhaATGC
                         cld
 
-                        mov ax, opcaoExtraT
+                        mov al, opcaoExtraT
                         repne scasb ; procura 't'
 
                         jne procura_c_escreve_grupo_no_arquivo_saida
 
                         ; caso tiver opcao T, guarda total
 
-                        mov di, bx
                         mov dx, totalBasesT
-                        mov es:[di], dx ; bota total de bases T na linha
-                        inc di ; proxima posicao da linha
-                        inc bx
-                        mov es:[di], pontoEVirgula ; bota ponto e virgula
+                        add dx, 48 ; soma 48 no total para ser lido como char ASCII
+
+                        mov es:[si], dx ; bota total de bases T na linha
+                        inc si ; proxima posicao da linha
+                        mov es:[si], pontoEVirgula ; bota ponto e virgula
+                        inc si ; proxima posicao da linha
                         add tamanhoStringLinhaDeSaida, 2
 
                     procura_c_escreve_grupo_no_arquivo_saida:
-
                         lea di, escolhaATGC ; Inicializa registradores
                         mov cx, tamanhoEscolhaATGC
                         cld
 
-                        mov ax, opcaoExtraC
+                        mov al, opcaoExtraC
                         repne scasb ; procura 'c'
 
                         jne procura_g_escreve_grupo_no_arquivo_saida
 
                         ; caso tiver opcao C, guarda total
 
-                        mov di, bx
                         mov dx, totalBasesC
-                        mov es:[di], dx ; bota total de bases C na linha
-                        inc di ; proxima posicao da linha
-                        inc bx
-                        mov es:[di], pontoEVirgula ; bota ponto e virgula
+                        add dx, 48 ; soma 48 no total para ser lido como char ASCII
+
+                        mov es:[si], dx ; bota total de bases C na linha
+                        inc si ; proxima posicao da linha
+                        mov es:[si], pontoEVirgula ; bota ponto e virgula
+                        inc si ; proxima posicao da linha
                         add tamanhoStringLinhaDeSaida, 2
 
                     procura_g_escreve_grupo_no_arquivo_saida:
-
                         lea di, escolhaATGC ; Inicializa registradores
                         mov cx, tamanhoEscolhaATGC
                         cld
 
-                        mov ax, opcaoExtraG
+                        mov al, opcaoExtraG
                         repne scasb ; procura 'g'
 
                         jne procura_mais_escreve_grupo_no_arquivo_saida
 
                         ; caso tiver opcao G, guarda total
 
-                        mov di, bx
                         mov dx, totalBasesG
-                        mov es:[di], dx ; bota total de bases G na linha
-                        inc di ; proxima posicao da linha
-                        inc bx
-                        mov es:[di], pontoEVirgula ; bota ponto e virgula
+                        add dx, 48 ; soma 48 no total para ser lido como char ASCII
+
+                        mov es:[si], dx ; bota total de bases G na linha
+                        inc si ; proxima posicao da linha
+                        mov es:[si], pontoEVirgula ; bota ponto e virgula
+                        inc si ; proxima posicao da linha
                         add tamanhoStringLinhaDeSaida, 2
 
                     procura_mais_escreve_grupo_no_arquivo_saida:
-
                         lea di, escolhaATGC ; Inicializa registradores
                         mov cx, tamanhoEscolhaATGC
                         cld
 
-                        mov ax, opcaoExtraMais
+                        mov al, opcaoExtraMais
                         repne scasb ; procura '+'
 
-                        jne finaliza_escreve_grupo_no_arquivo_saida ; se chegou aqui, finalizou e volta pro fluxo
+                        jne finaliza_escreve_grupo_no_arquivo_saida ; se chegou aqui, finaliza e escreve a linha na saida
 
                         ; caso tiver opcao +, guarda total
 
-                        mov di, bx
                         mov dx, totalBasesAT
-                        mov es:[di], dx ; bota total de bases AT na linha
-                        inc di ; proxima posicao da linha
-                        mov es:[di], pontoEVirgula ; bota ponto e virgula
-                        inc di ; proxima posicao da linha
+                        add dx, 48 ; soma 48 no total para ser lido como char ASCII
+
+                        mov es:[si], dx ; bota total de bases AT na linha
+                        inc si ; proxima posicao da linha
+                        mov es:[si], pontoEVirgula ; bota ponto e virgula
+                        inc si ; proxima posicao da linha
+
                         mov dx, totalBasesCG
-                        mov es:[di], dx ; bota total de bases CG na linha
+                        add dx, 48 ; soma 48 no total para ser lido como char ASCII
+
+                        mov es:[si], dx ; bota total de bases CG na linha
                         
-                        add tamanhoStringLinhaDeSaida, 4
+                        add tamanhoStringLinhaDeSaida, 3
 
                     finaliza_escreve_grupo_no_arquivo_saida:
-                        inc di ; proxima posicao da linha
-                        mov es:[di], CR ; bota CR na linha
-                        inc di ; proxima posicao da linha
-                        mov es:[di], LF ; bota LF na linha
-                        inc di ; proxima posicao da linha
-                        mov es:[di], 0 ; bota 0 como fim
+                        inc si ; proxima posicao da linha
+                        mov es:[si], CR ; bota CR na linha
+                        inc si ; proxima posicao da linha
+                        mov es:[si], LF ; bota LF na linha
+                        inc si ; proxima posicao da linha
+                        mov es:[si], 0 ; bota 0 como fim
 
                         add tamanhoStringLinhaDeSaida, 3
 
-                        jmp loop_processa_grupo
+                        ; escreve a linha no arquivo de saida
+                        mov bx, fileSaidaHandle
+                        mov	ah, 40h
+                        mov	cx, tamanhoStringLinhaDeSaida ; num de bytes e a serem escritos
+                        lea	dx, stringLinhaDeSaida ; buffer dos dados
+                        int	21h
+
+                        jnc	loop_processa_grupo ; se escreveu com sucesso, vai para o proximo grupo
+
+                        mov	bx, fileHandle
+                        call fclose ; se houve erro escrevendo no arquivo de saida, fecha o de entrada e encerra
+                        lea	bx, msgErroEscreverArquivoSaida
+                        call printf_s
+
+                        jmp final_processa_arquivo_entrada
                 
+
+    final_resumo_processa_arquivo_entrada:
+
+
+        .exit
 
     final_processa_arquivo_entrada:
         .exit
