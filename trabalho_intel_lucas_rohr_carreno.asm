@@ -388,16 +388,16 @@ processa_opcao_ATGC	proc	near
     mov	ax, ds ; Ajusta ES=DS
 	mov	es, ax
 
-    lea di, entradaLinhaComando ; Inicializa registradores
+    lea di, entradaLinhaComando
 
     loop_busca_opcao_a:
         mov dl, es:[di]
 
         cmp dl, CR
-        je loop_busca_opcao_t
+        je processa_busca_opcao_t
 
         cmp dl, 0
-        je loop_busca_opcao_t
+        je processa_busca_opcao_t
 
         cmp dl, '-'
         je continua_loop_busca_opcao_a
@@ -414,101 +414,113 @@ processa_opcao_ATGC	proc	near
 
             jmp loop_busca_opcao_a
 
-    loop_busca_opcao_t:
-        mov dl, es:[di]
+    processa_busca_opcao_t:
+        lea di, entradaLinhaComando
 
-        cmp dl, CR
-        je loop_busca_opcao_g
-
-        cmp dl, 0
-        je loop_busca_opcao_g
-
-        cmp dl, '-'
-        je continua_loop_busca_opcao_t
-
-        inc di
-        jmp loop_busca_opcao_t
-
-        continua_loop_busca_opcao_t:
-            inc di
+        loop_busca_opcao_t:
             mov dl, es:[di]
 
-            cmp dl, 't'
-            je processa_opcao_atgc_completa
+            cmp dl, CR
+            je processa_busca_opcao_g
 
+            cmp dl, 0
+            je processa_busca_opcao_g
+
+            cmp dl, '-'
+            je continua_loop_busca_opcao_t
+
+            inc di
             jmp loop_busca_opcao_t
 
-    loop_busca_opcao_g:
-        mov dl, es:[di]
+            continua_loop_busca_opcao_t:
+                inc di
+                mov dl, es:[di]
 
-        cmp dl, CR
-        je loop_busca_opcao_c
+                cmp dl, 't'
+                je processa_opcao_atgc_completa
 
-        cmp dl, 0
-        je loop_busca_opcao_c
+                jmp loop_busca_opcao_t
 
-        cmp dl, '-'
-        je continua_loop_busca_opcao_g
+    processa_busca_opcao_g:
+        lea di, entradaLinhaComando
 
-        inc di
-        jmp loop_busca_opcao_g
-
-        continua_loop_busca_opcao_g:
-            inc di
+        loop_busca_opcao_g:
             mov dl, es:[di]
 
-            cmp dl, 'g'
-            je processa_opcao_atgc_completa
+            cmp dl, CR
+            je processa_busca_opcao_c
 
+            cmp dl, 0
+            je processa_busca_opcao_c
+
+            cmp dl, '-'
+            je continua_loop_busca_opcao_g
+
+            inc di
             jmp loop_busca_opcao_g
 
-    loop_busca_opcao_c:
-        mov dl, es:[di]
+            continua_loop_busca_opcao_g:
+                inc di
+                mov dl, es:[di]
 
-        cmp dl, CR
-        je loop_busca_opcao_mais
+                cmp dl, 'g'
+                je processa_opcao_atgc_completa
 
-        cmp dl, 0
-        je loop_busca_opcao_mais
+                jmp loop_busca_opcao_g
 
-        cmp dl, '-'
-        je continua_loop_busca_opcao_c
+    processa_busca_opcao_c:
+        lea di, entradaLinhaComando
 
-        inc di
-        jmp loop_busca_opcao_c
-
-        continua_loop_busca_opcao_c:
-            inc di
+        loop_busca_opcao_c:
             mov dl, es:[di]
 
-            cmp dl, 'c'
-            je processa_opcao_atgc_completa
+            cmp dl, CR
+            je processa_busca_opcao_mais
 
+            cmp dl, 0
+            je processa_busca_opcao_mais
+
+            cmp dl, '-'
+            je continua_loop_busca_opcao_c
+
+            inc di
             jmp loop_busca_opcao_c
 
-    loop_busca_opcao_mais:
-        mov dl, es:[di]
+            continua_loop_busca_opcao_c:
+                inc di
+                mov dl, es:[di]
 
-        cmp dl, CR
-        je erro_sem_opcao_atgc
+                cmp dl, 'c'
+                je processa_opcao_atgc_completa
 
-        cmp dl, 0
-        je erro_sem_opcao_atgc
+                jmp loop_busca_opcao_c
 
-        cmp dl, '-'
-        je continua_loop_busca_opcao_mais
+    processa_busca_opcao_mais:
+        lea di, entradaLinhaComando
 
-        inc di
-        jmp loop_busca_opcao_mais
-
-        continua_loop_busca_opcao_mais:
-            inc di
+        loop_busca_opcao_mais:
             mov dl, es:[di]
 
-            cmp dl, '+'
-            je processa_opcao_atgc_completa
+            cmp dl, CR
+            je erro_sem_opcao_atgc
 
+            cmp dl, 0
+            je erro_sem_opcao_atgc
+
+            cmp dl, '-'
+            je continua_loop_busca_opcao_mais
+
+            inc di
             jmp loop_busca_opcao_mais
+
+            continua_loop_busca_opcao_mais:
+                inc di
+                mov dl, es:[di]
+
+                cmp dl, '+'
+                je processa_opcao_atgc_completa
+
+                jmp loop_busca_opcao_mais
 
     processa_opcao_atgc_completa:
         mov si, di ; SI recebe o endereco atual na string de entrada
@@ -553,13 +565,6 @@ processa_opcao_ATGC	proc	near
 
         fim_opcao_atgc:
             mov byte ptr es:[di], 0 ; Coloca marca de fim de string
-
-            lea bx, escolhaATGC
-            call printf_s
-
-            lea bx, msgCRLF
-            call printf_s
-
             ret
 
     fim_opcao_atgc_invalida:
@@ -589,7 +594,7 @@ processa_arquivo_entrada	proc	near
 	mov	es, ax
 
     ; abre arquivo de entrada
-    mov	al, 0
+    mov	al, 0 ; modo read
 	lea	dx, nomeArquivoEntrada
 	mov	ah, 3dh
 	int	21h
@@ -600,66 +605,63 @@ processa_arquivo_entrada	proc	near
     ; se houve erro, printa que o arquivo nao existe e encerra
 	lea	bx, msgErroAbrirArquivo
 	call printf_s
-	mov	al, 1
+    mov	al,1
 	jmp	final_processa_arquivo_entrada
 
     continua_processa_arquivo_entrada:
         ; fileHandle = ax
 	    mov	fileHandle, ax
 
-        ; contar tamanho do arquivo de entrada para validar o mesmo
+        mov totalBasesArquivo, 0
+        mov totalLinhasArquivo, 0
 
-         ;		if ( (ax=fread(ah=0x3f, bx=FileHandle, cx=1, dx=FileBuffer)) ) {
-        ;			printf ("Erro na leitura do arquivo.\r\n");
-        ;			fclose(bx=FileHandle)
-        ;			exit(1);
-        ;		}
+        loop_le_caractere_arquivo:
 
-        mov	bx, fileHandle
-        mov	ah, 3fh
-        mov	cx, 1 ; le caractere por caractere
-        lea	dx, fileBuffer
-        int	21h
+            ; contar tamanho do arquivo de entrada para validar o mesmo
 
-        jnc	valida_tamanho_arquivo_entrada
+            ;		if ( (ax=fread(ah=0x3f, bx=FileHandle, cx=1, dx=FileBuffer)) ) {
+            ;			printf ("Erro na leitura do arquivo.\r\n");
+            ;			fclose(bx=FileHandle)
+            ;			exit(1);
+            ;		}
 
-        lea	bx, msgErroLerArquivo
-        call printf_s
-        mov	al,1
-        jmp	final_processa_arquivo_entrada
+            mov	bx, fileHandle
+            mov	ah, 3fh
+            mov	cx, 1 ; le caractere por caractere
+            lea	dx, fileBuffer
+            int	21h
 
-        valida_tamanho_arquivo_entrada:
-            mov totalBasesArquivo, 0
-            mov totalLinhasArquivo, 0
+            jnc	valida_caractere_arquivo_entrada
 
-            lea bx, fileBuffer
-            mov di, bx
-            
-            loop_processa_file_buffer_tamanho_arquivo:
-                mov dx, es:[di]
+            lea	bx, msgErroLerArquivo
+            call printf_s
+            mov	al,1
+            jmp	final_processa_arquivo_entrada
 
-                cmp dx, CR
-                je loop_processa_file_buffer_tamanho_arquivo_CR
+        valida_caractere_arquivo_entrada:
+            lea dl, fileBuffer
 
-                cmp dx, LF
-                je loop_processa_file_buffer_tamanho_arquivo_LF
+            cmp dl, CR
+            je loop_processa_file_buffer_tamanho_arquivo_CR
 
-                cmp dx, 0
-                je fim_loop_processa_file_buffer_tamanho_arquivo
+            cmp dl, LF
+            je loop_processa_file_buffer_tamanho_arquivo_LF
 
-                ; se nao for quebra de linha e nem 0, contabiliza
-                inc totalBasesArquivo
-                jmp loop_processa_file_buffer_tamanho_arquivo
+            cmp dl, 0
+            je fim_loop_processa_file_buffer_tamanho_arquivo
 
-                loop_processa_file_buffer_tamanho_arquivo_CR:
-                    inc totalLinhasArquivo
-                    jmp loop_processa_file_buffer_tamanho_arquivo
-            
-                loop_processa_file_buffer_tamanho_arquivo_LF:
-                    jmp loop_processa_file_buffer_tamanho_arquivo
+            ; se nao for quebra de linha e nem 0, contabiliza
+            inc totalBasesArquivo
+            jmp loop_le_caractere_arquivo
+
+            loop_processa_file_buffer_tamanho_arquivo_CR:
+                inc totalLinhasArquivo
+                jmp loop_le_caractere_arquivo
+        
+            loop_processa_file_buffer_tamanho_arquivo_LF:
+                jmp loop_le_caractere_arquivo
 
         fim_loop_processa_file_buffer_tamanho_arquivo:
-
             mov dx, totalBasesArquivo
 
             cmp dx, tamanhoGrupo
@@ -673,7 +675,6 @@ processa_arquivo_entrada	proc	near
             tamanho_arquivo_invalido_pequeno:
                 lea	bx, msgArquivoMuitoPequeno
                 call printf_s
-
                 jmp	final_processa_arquivo_entrada
 
             tamanho_arquivo_invalido_grande:
@@ -683,13 +684,13 @@ processa_arquivo_entrada	proc	near
 
         continua_valida_tamanho_arquivo_entrada_valido:
             mov dx, totalBasesArquivo
-            mov indiceFimBaseArquivo, dx
+            mov indiceFimBaseArquivo, dx ; total m de bases
 
-            mov dx, tamanhoGrupo
-            sub indiceFimBaseArquivo, dx
+            mov dx, tamanhoGrupo ; total n de grupos
+            sub indiceFimBaseArquivo, dx ; m-n
 
             mov dx, indiceFimBaseArquivo
-            mov totalGruposArquivo, dx
+            mov totalGruposArquivo, dx ; totalGruposArquivo = m-n
 
             ; criar arquivo de saida
 
@@ -702,20 +703,20 @@ processa_arquivo_entrada	proc	near
             lea		dx, nomeArquivoSaida
             call	fcreate
             mov		fileSaidaHandle, bx
-            jnc		loop_processa_grupo ; se criou com sucesso, volta no loop para abrir ele
+            jnc		printa_header_arquivo_saida ; se criou com sucesso, vai para printar o header
 
             mov		bx, fileHandle
             call	fclose ; se houve erro criando o arquivo de saida, fecha o de entrada e encerra
             lea		bx, msgErroCriarArquivoSaida
             call	printf_s
 
-            ret
+            jmp final_processa_arquivo_entrada
 
         printa_header_arquivo_saida:
             ; abrir o arquivo de output
 
-            ; tenta abrir arquivo de saida
-            mov	al, 0
+            ; tenta abrir arquivo de saida, fopen
+            mov	al, 1 ; modo write
             lea	dx, nomeArquivoSaida
             mov	ah, 3dh
             int	21h
@@ -730,136 +731,127 @@ processa_arquivo_entrada	proc	near
             jmp	final_processa_arquivo_entrada
 
             continua_printa_header_arquivo_saida:
-
-                lea bx, stringHeaderSaida
+                lea si, stringHeaderSaida
 
                 lea di, escolhaATGC ; Inicializa registradores
                 mov cx, tamanhoEscolhaATGC
                 cld
 
-                mov ax, opcaoExtraA
+                mov al, opcaoExtraA
                 repne scasb ; procura 'a'
 
                 jne procura_t_printa_header_arquivo_saida
 
                 ; caso tiver opcao, guarda ela
 
-                mov di, bx
-                mov es:[di], opcaoASaida ; bota A no header
-                inc di ; proxima posicao da linha
-                inc bx
-                mov es:[di], pontoEVirgula ; bota ponto e virgula
+                mov es:[si], opcaoASaida ; bota A no header
+                inc si ; proxima posicao da linha
+                mov es:[si], pontoEVirgula ; bota ponto e virgula
+                inc si ; proxima posicao da linha
                 add tamanhoStringHeaderSaida, 2
 
                 procura_t_printa_header_arquivo_saida:
-
                     lea di, escolhaATGC ; Inicializa registradores
                     mov cx, tamanhoEscolhaATGC
                     cld
 
-                    mov ax, opcaoExtraT
+                    mov al, opcaoExtraT
                     repne scasb ; procura 't'
 
                     jne procura_c_printa_header_arquivo_saida
 
                     ; caso tiver opcao, guarda ela
 
-                    mov di, bx
-                    mov es:[di], opcaoTSaida ; bota T no header
-                    inc di ; proxima posicao da linha
-                    inc bx
-                    mov es:[di], pontoEVirgula ; bota ponto e virgula
+                    mov es:[si], opcaoTSaida ; bota T no header
+                    inc si ; proxima posicao da linha
+                    mov es:[si], pontoEVirgula ; bota ponto e virgula
+                    inc si ; proxima posicao da linha
                     add tamanhoStringHeaderSaida, 2
 
                 procura_c_printa_header_arquivo_saida:
-
                     lea di, escolhaATGC ; Inicializa registradores
                     mov cx, tamanhoEscolhaATGC
                     cld
 
-                    mov ax, opcaoExtraC
+                    mov al, opcaoExtraC
                     repne scasb ; procura 'c'
 
                     jne procura_g_printa_header_arquivo_saida
 
                     ; caso tiver opcao, guarda ela
 
-                    mov di, bx
-                    mov es:[di], opcaoCSaida ; bota C no header
-                    inc di ; proxima posicao da linha
-                    inc bx
-                    mov es:[di], pontoEVirgula ; bota ponto e virgula
+                    mov es:[si], opcaoCSaida ; bota C no header
+                    inc si ; proxima posicao da linha
+                    mov es:[si], pontoEVirgula ; bota ponto e virgula
+                    inc si ; proxima posicao da linha
                     add tamanhoStringHeaderSaida, 2
 
                 procura_g_printa_header_arquivo_saida:
-
                     lea di, escolhaATGC ; Inicializa registradores
                     mov cx, tamanhoEscolhaATGC
                     cld
 
-                    mov ax, opcaoExtraG
+                    mov al, opcaoExtraG
                     repne scasb ; procura 'g'
 
                     jne procura_mais_printa_header_arquivo_saida
 
                     ; caso tiver opcao, guarda ela
 
-                    mov di, bx
-                    mov es:[di], opcaoGSaida ; bota G no header
-                    inc di ; proxima posicao da linha
-                    inc bx
-                    mov es:[di], pontoEVirgula ; bota ponto e virgula
+                    mov es:[si], opcaoGSaida ; bota G no header
+                    inc si ; proxima posicao da linha
+                    mov es:[si], pontoEVirgula ; bota ponto e virgula
+                    inc si ; proxima posicao da linha
                     add tamanhoStringHeaderSaida, 2
 
                 procura_mais_printa_header_arquivo_saida:
-
                     lea di, escolhaATGC ; Inicializa registradores
                     mov cx, tamanhoEscolhaATGC
                     cld
 
-                    mov ax, opcaoExtraMais
+                    mov al, opcaoExtraMais
                     repne scasb ; procura '+'
 
                     jne finaliza_printa_header_arquivo_saida
 
                     ; caso tiver opcao, guarda ela
 
-                    mov di, bx
-                    mov es:[di], opcaoASaida ; bota A no header
-                    inc di ; proxima posicao da linha
-                    mov es:[di], opcaoMaisSaida ; bota + no header
-                    inc di ; proxima posicao da linha
-                    mov es:[di], opcaoTSaida ; bota T no header
-                    inc di ; proxima posicao da linha
-                    mov es:[di], pontoEVirgula ; bota ; no header
+                    mov es:[si], opcaoASaida ; bota A no header
+                    inc si ; proxima posicao da linha
+                    mov es:[si], opcaoMaisSaida ; bota + no header
+                    inc si ; proxima posicao da linha
+                    mov es:[si], opcaoTSaida ; bota T no header
+                    inc si ; proxima posicao da linha
+                    mov es:[si], pontoEVirgula ; bota ; no header
 
-                    inc di ; 
-                    mov es:[di], opcaoCSaida ; bota C no header
-                    inc di ; proxima posicao da linha
-                    mov es:[di], opcaoMaisSaida ; bota + no header
-                    inc di ; proxima posicao da linha
-                    mov es:[di], opcaoGSaida ; bota G no header
+                    inc si ; 
+                    mov es:[si], opcaoCSaida ; bota C no header
+                    inc si ; proxima posicao da linha
+                    mov es:[si], opcaoMaisSaida ; bota + no header
+                    inc si ; proxima posicao da linha
+                    mov es:[si], opcaoGSaida ; bota G no header
                     
-                    add tamanhoStringHeaderSaida, 7
+                    add tamanhoStringHeaderSaida, 7 ; A+T;C+G
 
                 finaliza_printa_header_arquivo_saida:
-                    inc di ; proxima posicao da linha
-                    mov es:[di], CR ; bota CR no header
-                    inc di ; proxima posicao da linha
-                    mov es:[di], LF ; bota LF no header
-                    inc di ; proxima posicao da linha
-                    mov es:[di], 0 ; bota 0 como fim
+                    inc si ; proxima posicao da linha
+                    mov es:[si], CR ; bota CR no header
+                    inc si ; proxima posicao da linha
+                    mov es:[si], LF ; bota LF no header
+                    inc si ; proxima posicao da linha
+                    mov byte ptr es:[di], 0 ; bota 0 como fim
+
                     add tamanhoStringHeaderSaida, 3
 
                     jmp printa_header
 
             printa_header:
                 ; escreve o header no arquivo de saida
+                mov bx, fileSaidaHandle
                 mov	ah, 40h
-                mov	cx, tamanhoStringHeaderSaida
-                mov		stringHeaderSaida, dl
-                lea		dx, stringHeaderSaida
-                int		21h
+                mov	cx, tamanhoStringHeaderSaida ; num de bytes e a serem escritos
+                lea	dx, stringHeaderSaida ; buffer dos dados
+                int	21h
 
                 jnc	loop_processa_grupo
 
@@ -868,10 +860,9 @@ processa_arquivo_entrada	proc	near
                 lea	bx, msgErroEscreverArquivoSaida
                 call printf_s
 
-                ret
+                jmp final_processa_arquivo_entrada
 
         loop_processa_grupo:
-
             mov totalBasesA, 0
             mov totalBasesT, 0
             mov totalBasesC, 0
@@ -891,7 +882,7 @@ processa_arquivo_entrada	proc	near
             lea	dx, fileBuffer
             int	21h
 
-            jnc	contiua_loop_processa_grupo
+            jnc	verifica_fim_loop_processa_grupo
 
             lea	bx, msgErroLerArquivo
             call printf_s
@@ -899,7 +890,6 @@ processa_arquivo_entrada	proc	near
             jmp	final_processa_arquivo_entrada
 
             verifica_fim_loop_processa_grupo:
-
                 dec indiceFimBaseArquivo
 
                 cmp indiceFimBaseArquivo, 0 ; se chegou no fim de quantos grupos vai ter, acaba
@@ -911,15 +901,15 @@ processa_arquivo_entrada	proc	near
                 ;		exit(0);
                 ;	}
                 cmp		ax,0
-                jne		contiua_loop_processa_grupo
+                jne		continua_loop_processa_grupo
                 mov		al,0
                 jmp		final_processa_arquivo_entrada
 
-            contiua_loop_processa_grupo:
+            continua_loop_processa_grupo:
                 ; abrir o arquivo de output
 
-                ; tenta abrir arquivo de saida
-                mov	al, 0
+                ; tenta abrir arquivo de saida, fopen
+                mov	al, 1 ; modo write
                 lea	dx, nomeArquivoSaida
                 mov	ah, 3dh
                 int	21h
@@ -934,40 +924,38 @@ processa_arquivo_entrada	proc	near
                 jmp	final_processa_arquivo_entrada
 
             abriu_saida_loop_processa_grupo:
-
-                ; depois disso preciso iterar pelo file buffer do grupo atual e processar o grupo
-                ;   -> preciso primeiro abrir o arquivo de entrada e processar ele - Check
-                ;   -> salvar totais para mostrar no resumo - Check
+                ; preciso iterar pelo file buffer do grupo atual e processar o grupo
+                ;   -> usar o arquivo de entrada e processar ele (fileBuffer)
+                ;   -> salvar totais para mostrar no resumo e na saida
                 ;   -> escrever dados do grupo no arquivo de saida
 
-                lea bx, fileBuffer
-                mov di, bx
-                
+                lea di, fileBuffer ; di recebe o endereco do fileBuffer
+
                 loop_processa_file_buffer:
+                    mov dl, es:[di] ; dl recebe o char atual do buffer
 
-                    mov dx, es:[di]
+                    cmp dl, CR
+                    je ignora_loop_processa_file_buffer ; se leu CR no buffer de entrada, ignora
 
-                    cmp dx, CR
-                    je ignora_loop_processa_file_buffer
+                    cmp dl, LF
+                    je ignora_loop_processa_file_buffer ; se leu LF no buffer de entrada, ignora
 
-                    cmp dx, LF
-                    je ignora_loop_processa_file_buffer
+                    cmp dl, 0
+                    je escreve_grupo_no_arquivo_saida ; se chegou no 0 do buffer, acabou ele
 
-                    cmp dx, 0
-                    je escreve_grupo_no_arquivo_saida
-
-                    cmp dx, opcaoASaida
+                    cmp dl, opcaoASaida
                     je processa_file_buffer_A
 
-                    cmp dx, opcaoTSaida
+                    cmp dl, opcaoTSaida
                     je processa_file_buffer_T
 
-                    cmp dx, opcaoCSaida
+                    cmp dl, opcaoCSaida
                     je processa_file_buffer_C
 
-                    cmp dx, opcaoGSaida
+                    cmp dl, opcaoGSaida
                     je processa_file_buffer_G
 
+                    ; se chegou aqui, leu um char invalido diferente dos permitidos, gera erro e finaliza
                     lea bx, msgErroCaractereInvalidoArquivoEntrada
                     call printf_s
 
