@@ -713,6 +713,7 @@ processa_arquivo_entrada	proc	near
             mov dx, indiceFimBaseArquivo
             mov totalGruposArquivo, dx ; totalGruposArquivo = m-n
             inc totalGruposArquivo ; +1
+            inc indiceFimBaseArquivo
 
             ; criar arquivo de saida
 
@@ -916,8 +917,6 @@ processa_arquivo_entrada	proc	near
 
                 dec indiceFimBaseArquivo
 
-                call printa_num
-
                 ; Verifica se terminou o arquivo
                 ;	if (ax==0) {
                 ;		fclose(bx=FileHandle);
@@ -1041,20 +1040,19 @@ processa_arquivo_entrada	proc	near
 
                     ; caso tiver opcao A, guarda total
 
-                    mov dx, totalBasesA
-                    add dx, 48 ; soma 48 no total para ser lido como char ASCII
+                    mov ax, totalBasesA
+                    call escreve_num_arquivo_saida ; escreve o total de A na linha
 
-                    mov es:[si], dx ; bota total de bases A na linha
-                    inc si ; proxima posicao da linha
                     mov es:[si], pontoEVirgula ; bota ponto e virgula
                     inc si ; proxima posicao da linha
-                    add tamanhoStringLinhaDeSaida, 2
+                    inc tamanhoStringLinhaDeSaida ; pois escreve ponto e virgula
 
                     procura_t_escreve_grupo_no_arquivo_saida:
                         lea di, escolhaATGC ; Inicializa registradores
                         mov cx, tamanhoEscolhaATGC
                         cld
 
+                        mov ah, 0
                         mov al, opcaoExtraT
                         repne scasb ; procura 't'
 
@@ -1062,20 +1060,19 @@ processa_arquivo_entrada	proc	near
 
                         ; caso tiver opcao T, guarda total
 
-                        mov dx, totalBasesT
-                        add dx, 48 ; soma 48 no total para ser lido como char ASCII
+                        mov ax, totalBasesT
+                        call escreve_num_arquivo_saida ; escreve o total de T na linha
 
-                        mov es:[si], dx ; bota total de bases T na linha
-                        inc si ; proxima posicao da linha
                         mov es:[si], pontoEVirgula ; bota ponto e virgula
                         inc si ; proxima posicao da linha
-                        add tamanhoStringLinhaDeSaida, 2
+                        inc tamanhoStringLinhaDeSaida ; pois escreve ponto e virgula
 
                     procura_c_escreve_grupo_no_arquivo_saida:
                         lea di, escolhaATGC ; Inicializa registradores
                         mov cx, tamanhoEscolhaATGC
                         cld
 
+                        mov ah, 0
                         mov al, opcaoExtraC
                         repne scasb ; procura 'c'
 
@@ -1083,20 +1080,19 @@ processa_arquivo_entrada	proc	near
 
                         ; caso tiver opcao C, guarda total
 
-                        mov dx, totalBasesC
-                        add dx, 48 ; soma 48 no total para ser lido como char ASCII
+                        mov ax, totalBasesC
+                        call escreve_num_arquivo_saida ; escreve o total de C na linha
 
-                        mov es:[si], dx ; bota total de bases C na linha
-                        inc si ; proxima posicao da linha
                         mov es:[si], pontoEVirgula ; bota ponto e virgula
                         inc si ; proxima posicao da linha
-                        add tamanhoStringLinhaDeSaida, 2
+                        inc tamanhoStringLinhaDeSaida ; pois escreve ponto e virgula
 
                     procura_g_escreve_grupo_no_arquivo_saida:
                         lea di, escolhaATGC ; Inicializa registradores
                         mov cx, tamanhoEscolhaATGC
                         cld
 
+                        mov ah, 0
                         mov al, opcaoExtraG
                         repne scasb ; procura 'g'
 
@@ -1104,20 +1100,19 @@ processa_arquivo_entrada	proc	near
 
                         ; caso tiver opcao G, guarda total
 
-                        mov dx, totalBasesG
-                        add dx, 48 ; soma 48 no total para ser lido como char ASCII
+                        mov ax, totalBasesG
+                        call escreve_num_arquivo_saida ; escreve o total de G na linha
 
-                        mov es:[si], dx ; bota total de bases G na linha
-                        inc si ; proxima posicao da linha
                         mov es:[si], pontoEVirgula ; bota ponto e virgula
                         inc si ; proxima posicao da linha
-                        add tamanhoStringLinhaDeSaida, 2
+                        inc tamanhoStringLinhaDeSaida ; pois escreve ponto e virgula
 
                     procura_mais_escreve_grupo_no_arquivo_saida:
                         lea di, escolhaATGC ; Inicializa registradores
                         mov cx, tamanhoEscolhaATGC
                         cld
 
+                        mov ah, 0
                         mov al, opcaoExtraMais
                         repne scasb ; procura '+'
 
@@ -1125,30 +1120,24 @@ processa_arquivo_entrada	proc	near
 
                         ; caso tiver opcao +, guarda total
 
-                        mov dx, totalBasesAT
-                        add dx, 48 ; soma 48 no total para ser lido como char ASCII
+                        mov ax, totalBasesAT
+                        call escreve_num_arquivo_saida ; escreve o total de AT na linha
 
-                        mov es:[si], dx ; bota total de bases AT na linha
-                        inc si ; proxima posicao da linha
                         mov es:[si], pontoEVirgula ; bota ponto e virgula
                         inc si ; proxima posicao da linha
 
-                        mov dx, totalBasesCG
-                        add dx, 48 ; soma 48 no total para ser lido como char ASCII
-
-                        mov es:[si], dx ; bota total de bases CG na linha
+                        mov ax, totalBasesCG
+                        call escreve_num_arquivo_saida ; escreve o total de CG na linha
                         
-                        add tamanhoStringLinhaDeSaida, 3
+                        inc tamanhoStringLinhaDeSaida ; pois escreve ponto e virgula
 
                     finaliza_escreve_grupo_no_arquivo_saida:
                         inc si ; proxima posicao da linha
                         mov es:[si], CR ; bota CR na linha
                         inc si ; proxima posicao da linha
                         mov es:[si], LF ; bota LF na linha
-                        inc si ; proxima posicao da linha
-                        mov es:[si], 0 ; bota 0 como fim
 
-                        add tamanhoStringLinhaDeSaida, 3
+                        add tamanhoStringLinhaDeSaida, 2
 
                         ; escreve a linha no arquivo de saida
                         mov bx, fileSaidaHandle
@@ -1160,7 +1149,11 @@ processa_arquivo_entrada	proc	near
                         jnc	loop_processa_grupo ; se escreveu com sucesso, vai para o proximo grupo
 
                         mov	bx, fileHandle
-                        call fclose ; se houve erro escrevendo no arquivo de saida, fecha o de entrada e encerra
+                        call fclose ; se houve erro escrevendo no arquivo de saida, fecha arquivos e encerra
+
+                        mov	bx, fileSaidaHandle
+                        call fclose
+
                         lea	bx, msgErroEscreverArquivoSaida
                         call printf_s
 
@@ -1170,18 +1163,24 @@ processa_arquivo_entrada	proc	near
     final_resumo_processa_arquivo_entrada:
         ; == secao de opcoes ==
 
-        ; lea bx, msgInfosDasOpcoes
-        ; call printf_s
+        mov	bx, fileHandle
+        call fclose
 
-        ; ; -> nome do arquivo de entrada
-        ; lea bx, msgNomeArquivoEntrada
-        ; call printf_s
+        mov	bx, fileSaidaHandle
+        call fclose
 
-        ; lea bx, nomeArquivoEntrada
-        ; call printf_s
+        lea bx, msgInfosDasOpcoes
+        call printf_s
 
-        ; lea bx, msgCRLF
-        ; call printf_s
+        ; -> nome do arquivo de entrada
+        lea bx, msgNomeArquivoEntrada
+        call printf_s
+
+        lea bx, nomeArquivoEntrada
+        call printf_s
+
+        lea bx, msgCRLF
+        call printf_s
 
         ; -> nome do arquivo de saida
         lea bx, msgNomeArquivoSaida
@@ -1354,7 +1353,7 @@ printa_num proc
         mov dx, 0
         div bx  ; divide ax por 10
 
-        add dl, '0' ; converte para ASCIII
+        add dl, '0' ; converte para ASCII
         push dx  ; salva em ordem reversa, por isso salva na pilha
 
         inc cx                          
@@ -1373,6 +1372,37 @@ printa_num proc
 
 printa_num endp
 
+; Funcao para escrever um valor inteiro decimal no arquivo de saida
+; -> recebe o valor inteiro decimal no ax
+; -> assumir que ES=DS e si contem o endereco atual da string a ser escrita
+
+escreve_num_arquivo_saida proc
+    mov cx, 0
+    mov bx, 10
+
+    loop_escreve_num_1:
+        mov dx, 0
+        div bx  ; divide ax por 10
+
+        add dl, '0' ; converte para ASCII
+        push dx  ; escreve em ordem reversa, por isso salva na pilha os valores em ASCII
+
+        inc cx                          
+        cmp ax, 0  ; se ax for zero, finaliza
+        jnz loop_escreve_num_1 ; se nao, retorna no loop
+
+    loop_escreve_num_2:
+        pop dx  ; escreve de forma inversa, pois converte os digitos de tras pra frente
+
+        mov es:[si], dl ; bota digito na string da linha a ser escrita
+        inc si
+        inc tamanhoStringLinhaDeSaida
+    
+        loop loop_escreve_num_2
+
+        ret
+
+escreve_num_arquivo_saida endp
 
 ; =====================================================
 
