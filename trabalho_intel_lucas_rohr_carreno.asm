@@ -53,7 +53,7 @@
     msgErroAbrirArquivo db CR, "Erro de abertura: o arquivo de entrada informado nao existe", CR, LF, 0
     msgErroLerArquivo db CR, "Erro de leitura: houve um problema ao ler o arquivo de entrada", CR, LF, 0
 
-    msgErroAbrirArquivoSaida db CR, "Erro de abertura: o arquivo de saida informado nao existe", CR, LF, 0
+    msgErroAbrirArquivoSaida db CR, "Erro de abertura: erro ao abrir arquivo de saida", CR, LF, 0
     msgErroCriarArquivoSaida db CR, "Erro de criacao: erro ao criar arquivo de saida", CR, LF, 0
     msgErroEscreverArquivoSaida db "Erro de escrita: erro ao escrever no arquivo de saida", CR, LF, 0
 
@@ -94,6 +94,8 @@
 
     stringHeaderSaida db 15 dup (?)
     tamanhoStringHeaderSaida dw 0
+
+    indiceArquivoEntrada dw 0
 
     ; Variaveis para o resumo em tela
 
@@ -884,6 +886,44 @@ processa_arquivo_entrada	proc	near
                 jmp final_processa_arquivo_entrada
 
         loop_processa_grupo:
+            ; fecha arquivo de entrada
+            mov	bx, fileHandle
+            call fclose
+
+            ; abre arquivo de entrada novamente para zerar o ponteiro de leitura dele
+            mov	al, 0 ; modo read
+            lea	dx, nomeArquivoEntrada
+            mov	ah, 3dh
+            int	21h
+
+            ; se nao houve erro para abrir, continua para ler os grupos
+            jnc	altera_indice_arquivo_loop_processa_grupo
+
+            ; se houve erro, printa que o arquivo nao existe e encerra
+            lea	bx, msgErroAbrirArquivo
+            call printf_s
+            mov	al,1
+            jmp	final_processa_arquivo_entrada
+
+        altera_indice_arquivo_loop_processa_grupo:
+            ; le indiceArquivoEntrada caracteres do arquivo para mudar a posicao
+            ; do ponteiro do arquivo para o endereco do grupo atual
+
+            mov	bx, fileHandle
+            mov	ah, 3fh
+            mov	cx, indiceArquivoEntrada ; tamanho do indice
+            lea	dx, fileBuffer
+            int	21h
+
+            jnc	le_grupo_loop_processa_grupo
+
+            lea	bx, msgErroLerArquivo
+            call printf_s
+            mov	al,1
+            jmp	final_processa_arquivo_entrada
+
+        le_grupo_loop_processa_grupo:
+
             mov totalBasesA, 0
             mov totalBasesT, 0
             mov totalBasesC, 0
@@ -928,24 +968,6 @@ processa_arquivo_entrada	proc	near
                 jmp		final_resumo_processa_arquivo_entrada
 
             continua_loop_processa_grupo:
-                ; abrir o arquivo de output
-
-                ; tenta abrir arquivo de saida, fopen
-                mov	al, 1 ; modo write
-                lea	dx, nomeArquivoSaida
-                mov	ah, 3dh
-                int	21h
-
-                ; se nao houve erro para abrir, continua
-                jnc	abriu_saida_loop_processa_grupo
-
-                ; se houve erro, printa que o arquivo nao existe e encerra
-                lea	bx, msgErroAbrirArquivoSaida
-                call printf_s
-                mov	al, 1
-                jmp	final_processa_arquivo_entrada
-
-            abriu_saida_loop_processa_grupo:
                 ; preciso iterar pelo file buffer do grupo atual e processar o grupo
                 ;   -> usar o arquivo de entrada e processar ele (fileBuffer)
                 ;   -> salvar totais para mostrar no resumo e na saida
@@ -987,16 +1009,12 @@ processa_arquivo_entrada	proc	near
                         inc totalBasesA
                         inc totalBasesAT
 
-                        inc totalBasesArquivo
-
                         inc di
                         jmp loop_processa_file_buffer
 
                     processa_file_buffer_T:
                         inc totalBasesT
                         inc totalBasesAT
-
-                        inc totalBasesArquivo
 
                         inc di
                         jmp loop_processa_file_buffer
@@ -1005,16 +1023,12 @@ processa_arquivo_entrada	proc	near
                         inc totalBasesC
                         inc totalBasesCG
 
-                        inc totalBasesArquivo
-
                         inc di
                         jmp loop_processa_file_buffer
 
                     processa_file_buffer_G:
                         inc totalBasesG
                         inc totalBasesCG
-
-                        inc totalBasesArquivo
 
                         inc di
                         jmp loop_processa_file_buffer
@@ -1146,7 +1160,7 @@ processa_arquivo_entrada	proc	near
                         lea	dx, stringLinhaDeSaida ; buffer dos dados
                         int	21h
 
-                        jnc	loop_processa_grupo ; se escreveu com sucesso, vai para o proximo grupo
+                        jnc	retorna_loop_processa_grupo ; se escreveu com sucesso, vai para o proximo grupo
 
                         mov	bx, fileHandle
                         call fclose ; se houve erro escrevendo no arquivo de saida, fecha arquivos e encerra
@@ -1158,6 +1172,10 @@ processa_arquivo_entrada	proc	near
                         call printf_s
 
                         jmp final_processa_arquivo_entrada
+
+                    retorna_loop_processa_grupo:
+                        inc indiceArquivoEntrada
+                        jmp loop_processa_grupo
                 
 
     final_resumo_processa_arquivo_entrada:
@@ -1244,6 +1262,12 @@ processa_arquivo_entrada	proc	near
         .exit
 
     final_processa_arquivo_entrada:
+        mov	bx, fileHandle
+        call fclose
+
+        mov	bx, fileSaidaHandle
+        call fclose
+
         .exit
 
 processa_arquivo_entrada	endp
