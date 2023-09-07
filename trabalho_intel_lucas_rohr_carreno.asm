@@ -104,9 +104,9 @@
     msgOpcoesATGC db "-> Opcoes ATGC:", CR, LF, 0
 
     msgInfosDaEntrada db CR, LF, "== Informacoes do arquivo de entrada ==", CR, LF, 0
-    msgNumeroDeBases  db "-> Total de bases no arquivo de entrada:", CR, LF, 0
-    msgNumeroDeGrupos  db "-> Total de grupos no arquivo de entrada:", CR, LF, 0
-    msgNumeroDeLinhas  db "-> Total de linhas no arquivo de entrada:", CR, LF, 0
+    msgNumeroDeBases db "-> Total de bases no arquivo de entrada:", CR, LF, 0
+    msgNumeroDeGrupos db "-> Total de grupos no arquivo de entrada:", CR, LF, 0
+    msgNumeroDeLinhas db "-> Total de linhas no arquivo de entrada:", CR, LF, 0
 
     ; ---------------------------------------------------------------
 
@@ -626,7 +626,8 @@ processa_arquivo_entrada	proc	near
 	    mov	fileHandle, ax
 
         mov totalBasesArquivo, 0
-        mov totalLinhasArquivo, 0
+        mov totalGruposArquivo, 0
+        mov totalLinhasArquivo, 1 ; comeca em uma linha sempre, pois é total de CR/LF + 1
 
         loop_le_caractere_arquivo:
 
@@ -652,7 +653,7 @@ processa_arquivo_entrada	proc	near
             jmp	final_processa_arquivo_entrada
 
         valida_caractere_arquivo_entrada:
-            lea dl, fileBuffer
+            mov dl, fileBuffer
 
             cmp dl, CR
             je loop_processa_file_buffer_tamanho_arquivo_CR
@@ -675,6 +676,12 @@ processa_arquivo_entrada	proc	near
                 jmp loop_le_caractere_arquivo
 
         fim_loop_processa_file_buffer_tamanho_arquivo:
+            lea bx, msgErroOpcaoF
+            call printf_s
+
+            lea bx, msgCRLF
+            call printf_s
+
             mov dx, totalBasesArquivo
 
             cmp dx, tamanhoGrupo
@@ -1159,7 +1166,79 @@ processa_arquivo_entrada	proc	near
                 
 
     final_resumo_processa_arquivo_entrada:
+        ; == secao de opcoes ==
 
+        lea bx, msgInfosDasOpcoes
+        call printf_s
+
+        ; -> nome do arquivo de entrada
+        lea bx, msgNomeArquivoEntrada
+        call printf_s
+
+        lea bx, nomeArquivoEntrada
+        call printf_s
+
+        ; -> nome do arquivo de saida
+        lea bx, msgNomeArquivoSaida
+        call printf_s
+
+        lea bx, nomeArquivoSaida
+        call printf_s
+
+        ; -> tamanho dos grupos
+        lea bx, msgTamanhoGrupos
+        call printf_s
+
+        lea bx, tamanhoGrupoString
+        call printf_s
+
+        ; -> opcoes ATGC
+        lea bx, msgOpcoesATGC
+        call printf_s
+
+        lea bx, escolhaATGC
+        call printf_s
+
+        ; == secao de dados da entrada ==
+        
+        lea bx, msgInfosDaEntrada
+        call printf_s
+
+        lea bx, msgNumeroDeBases
+        call printf_s
+
+        mov dx, totalBasesArquivo
+        push bx
+        mov	ah,2
+        int	21H
+        pop	bx
+
+        lea bx, msgCRLF
+        call printf_s
+
+        lea bx, msgNumeroDeGrupos
+        call printf_s
+
+        mov dx, totalGruposArquivo
+        push bx
+        mov	ah,2
+        int	21H
+        pop	bx
+
+        lea bx, msgCRLF
+        call printf_s
+
+        lea bx, msgNumeroDeLinhas
+        call printf_s
+
+        mov dx, totalLinhasArquivo
+        push bx
+        mov	ah,2
+        int	21H
+        pop	bx
+
+        lea bx, msgCRLF
+        call printf_s
 
         .exit
 
