@@ -98,15 +98,15 @@
     ; Variaveis para o resumo em tela
 
     msgInfosDasOpcoes db CR, LF, "== Informacoes das opcoes fornecidas ==", CR, LF, 0
-    msgNomeArquivoEntrada db "-> Nome do arquivo de entrada:", CR, LF, 0
-    msgNomeArquivoSaida db "-> Nome do arquivo de saida:", CR, LF, 0
-    msgTamanhoGrupos db "-> Tamanho dos grupos de bases:", CR, LF, 0
-    msgOpcoesATGC db "-> Opcoes ATGC:", CR, LF, 0
+    msgNomeArquivoEntrada db CR, LF, "-> Nome do arquivo de entrada:", CR, LF, 0
+    msgNomeArquivoSaida db CR, LF, "-> Nome do arquivo de saida:", CR, LF, 0
+    msgTamanhoGrupos db CR, LF, "-> Tamanho dos grupos de bases:", CR, LF, 0
+    msgOpcoesATGC db CR, LF, "-> Opcoes ATGC:", CR, LF, 0
 
-    msgInfosDaEntrada db CR, LF, "== Informacoes do arquivo de entrada ==", CR, LF, 0
-    msgNumeroDeBases db "-> Total de bases no arquivo de entrada:", CR, LF, 0
-    msgNumeroDeGrupos db "-> Total de grupos no arquivo de entrada:", CR, LF, 0
-    msgNumeroDeLinhas db "-> Total de linhas no arquivo de entrada:", CR, LF, 0
+    msgInfosDaEntrada db CR, LF, CR, LF, "== Informacoes do arquivo de entrada ==", CR, LF, 0
+    msgNumeroDeBases db CR, LF, "-> Total de bases no arquivo de entrada:", CR, LF, 0
+    msgNumeroDeGrupos db CR, LF, "-> Total de grupos no arquivo de entrada:", CR, LF, 0
+    msgNumeroDeLinhas db CR, LF, "-> Total de linhas no arquivo de entrada:", CR, LF, 0
 
     ; ---------------------------------------------------------------
 
@@ -379,7 +379,7 @@ processa_opcao_n	proc	near
                 lea bx, tamanhoGrupoString
                 call atoi ; ax = atoi(tamanhoGrupoString)
 
-                mov tamanhoGrupo, ax ; salva tamanho do grupo como valor hexa
+                mov tamanhoGrupo, ax ; salva tamanho do grupo como valor decimal
 
                 ret ; retorna
 
@@ -652,36 +652,37 @@ processa_arquivo_entrada	proc	near
             mov	al,1
             jmp	final_processa_arquivo_entrada
 
+
         valida_caractere_arquivo_entrada:
-            mov dl, fileBuffer
+            ; primeiro verifica se terminou de ler o arquivo
 
-            cmp dl, CR
-            je loop_processa_file_buffer_tamanho_arquivo_CR
+            cmp	ax, 0
+            jne	continua_valida_caractere_arquivo_entrada
+            mov	al,0
+            jmp	fim_loop_processa_file_buffer_tamanho_arquivo
 
-            cmp dl, LF
-            je loop_processa_file_buffer_tamanho_arquivo_LF
+            continua_valida_caractere_arquivo_entrada:
+                mov dl, fileBuffer
 
-            cmp dl, 0
-            je fim_loop_processa_file_buffer_tamanho_arquivo
+                cmp dl, CR
+                je loop_processa_file_buffer_tamanho_arquivo_CR
 
-            ; se nao for quebra de linha e nem 0, contabiliza
-            inc totalBasesArquivo
-            jmp loop_le_caractere_arquivo
+                cmp dl, LF
+                je loop_processa_file_buffer_tamanho_arquivo_LF
+
+                ; se nao for quebra de linha e nem 0, contabiliza
+                inc totalBasesArquivo
+                jmp loop_le_caractere_arquivo
 
             loop_processa_file_buffer_tamanho_arquivo_CR:
                 inc totalLinhasArquivo
                 jmp loop_le_caractere_arquivo
         
             loop_processa_file_buffer_tamanho_arquivo_LF:
+                inc totalLinhasArquivo
                 jmp loop_le_caractere_arquivo
 
         fim_loop_processa_file_buffer_tamanho_arquivo:
-            lea bx, msgErroOpcaoF
-            call printf_s
-
-            lea bx, msgCRLF
-            call printf_s
-
             mov dx, totalBasesArquivo
 
             cmp dx, tamanhoGrupo
@@ -706,11 +707,12 @@ processa_arquivo_entrada	proc	near
             mov dx, totalBasesArquivo
             mov indiceFimBaseArquivo, dx ; total m de bases
 
-            mov dx, tamanhoGrupo ; total n de grupos
+            mov dx, tamanhoGrupo ; tamanho n de grupos
             sub indiceFimBaseArquivo, dx ; m-n
 
             mov dx, indiceFimBaseArquivo
             mov totalGruposArquivo, dx ; totalGruposArquivo = m-n
+            inc totalGruposArquivo ; +1
 
             ; criar arquivo de saida
 
@@ -858,10 +860,8 @@ processa_arquivo_entrada	proc	near
                     mov es:[si], CR ; bota CR no header
                     inc si ; proxima posicao da linha
                     mov es:[si], LF ; bota LF no header
-                    inc si ; proxima posicao da linha
-                    mov byte ptr es:[di], 0 ; bota 0 como fim
 
-                    add tamanhoStringHeaderSaida, 3
+                    add tamanhoStringHeaderSaida, 2
 
                     jmp printa_header
 
@@ -911,10 +911,12 @@ processa_arquivo_entrada	proc	near
             jmp	final_processa_arquivo_entrada
 
             verifica_fim_loop_processa_grupo:
-                dec indiceFimBaseArquivo
-
                 cmp indiceFimBaseArquivo, 0 ; se chegou no fim de quantos grupos vai ter, acaba
                 je final_resumo_processa_arquivo_entrada
+
+                dec indiceFimBaseArquivo
+
+                call printa_num
 
                 ; Verifica se terminou o arquivo
                 ;	if (ax==0) {
@@ -1168,15 +1170,18 @@ processa_arquivo_entrada	proc	near
     final_resumo_processa_arquivo_entrada:
         ; == secao de opcoes ==
 
-        lea bx, msgInfosDasOpcoes
-        call printf_s
+        ; lea bx, msgInfosDasOpcoes
+        ; call printf_s
 
-        ; -> nome do arquivo de entrada
-        lea bx, msgNomeArquivoEntrada
-        call printf_s
+        ; ; -> nome do arquivo de entrada
+        ; lea bx, msgNomeArquivoEntrada
+        ; call printf_s
 
-        lea bx, nomeArquivoEntrada
-        call printf_s
+        ; lea bx, nomeArquivoEntrada
+        ; call printf_s
+
+        ; lea bx, msgCRLF
+        ; call printf_s
 
         ; -> nome do arquivo de saida
         lea bx, msgNomeArquivoSaida
@@ -1185,11 +1190,17 @@ processa_arquivo_entrada	proc	near
         lea bx, nomeArquivoSaida
         call printf_s
 
+        lea bx, msgCRLF
+        call printf_s
+
         ; -> tamanho dos grupos
         lea bx, msgTamanhoGrupos
         call printf_s
 
         lea bx, tamanhoGrupoString
+        call printf_s
+
+        lea bx, msgCRLF
         call printf_s
 
         ; -> opcoes ATGC
@@ -1207,11 +1218,8 @@ processa_arquivo_entrada	proc	near
         lea bx, msgNumeroDeBases
         call printf_s
 
-        mov dx, totalBasesArquivo
-        push bx
-        mov	ah,2
-        int	21H
-        pop	bx
+        mov ax, totalBasesArquivo
+        call printa_num
 
         lea bx, msgCRLF
         call printf_s
@@ -1219,11 +1227,8 @@ processa_arquivo_entrada	proc	near
         lea bx, msgNumeroDeGrupos
         call printf_s
 
-        mov dx, totalGruposArquivo
-        push bx
-        mov	ah,2
-        int	21H
-        pop	bx
+        mov ax, totalGruposArquivo
+        call printa_num
 
         lea bx, msgCRLF
         call printf_s
@@ -1231,11 +1236,8 @@ processa_arquivo_entrada	proc	near
         lea bx, msgNumeroDeLinhas
         call printf_s
 
-        mov dx, totalLinhasArquivo
-        push bx
-        mov	ah,2
-        int	21H
-        pop	bx
+        mov ax, totalLinhasArquivo
+        call printa_num
 
         lea bx, msgCRLF
         call printf_s
@@ -1303,7 +1305,7 @@ printf_s	endp
 
 
 
-; Funcao para converter string em numero inteiro de 16bits
+; Funcao para converter string em numero inteiro de 16bits, decimal
 
 atoi	proc near
 
@@ -1317,7 +1319,7 @@ atoi_2:
 		je		atoi_1
 
 		; 	A = 10 * A
-		mov	cx,10
+		mov	cx,16
 		mul	cx
 
 		; 	A = A + *S
@@ -1339,6 +1341,37 @@ atoi_1:
 		ret
 
 atoi	endp
+
+
+; Funcao para printar um valor inteiro decimal em tela
+; -> recebe o numero no registrador ax
+
+printa_num proc
+    mov cx, 0
+    mov bx, 10
+
+    loop_printa_num_1:
+        mov dx, 0
+        div bx  ; divide ax por 10
+
+        add dl, '0' ; converte para ASCIII
+        push dx  ; salva em ordem reversa, por isso salva na pilha
+
+        inc cx                          
+        cmp ax, 0  ; se ax for zero, finaliza
+        jnz loop_printa_num_1 ; se nao, retorna no loop
+
+        mov ah, 2
+
+    loop_printa_num_2:
+        pop dx  ; printa de forma inversa, pois converte os digitos de tras pra frente
+        int 21h 
+    
+        loop loop_printa_num_2
+
+        ret
+
+printa_num endp
 
 
 ; =====================================================
