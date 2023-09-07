@@ -11,10 +11,11 @@
     CR	equ	13
     LF	equ	10
 
-	.data ; Segmento de dados para declaracao de variáveis, EQUs e mensagens
+	.data ; Segmento de dados para declaracao de variáveis, constantes e mensagens
 
     entradaLinhaComando db 100 dup (?) ; reserva espaco para entrada da linha de comando
 
+    ; Flags de opcoes de entrada
     opcaoF dw "f-"
     opcaoO dw "o-"
     opcaoN dw "n-"
@@ -31,12 +32,14 @@
     escolhaATGC dw 5 dup (?)
     tamanhoEscolhaATGC dw 5 dup (?)
 
+    ; Opcoes atgc entradas pelo terminal
     opcaoExtraA equ 'a'
     opcaoExtraT equ 't'
     opcaoExtraG equ 'g'
     opcaoExtraC equ 'c'
     opcaoExtraMais equ '+'
 
+    ; opcoes ATGC do arquivo de entrada e do de saida
     opcaoASaida equ 'A'
     opcaoTSaida equ 'T'
     opcaoGSaida equ 'G'
@@ -46,6 +49,7 @@
 
     tamanhoMaxArquivo equ 10000
 
+    ; Mensagens das tratativas de erros
     msgErroOpcaoF db CR, "Erro: Nome do arquivo de entrada nao informado", CR, LF, 0
     msgErroOpcaoN db CR, "Erro: Tamanho dos grupos de bases nitrogenadas nao informado", CR, LF, 0
     msgErroOpcaoATGC db CR, "Erro: Opcao de saida ATGC+ nao informada", CR, LF, 0
@@ -66,9 +70,9 @@
     msgCRLF	db	CR, LF, 0
 
     nomePadraoArquivoSaida	db	"a.out"
-    temErroLinhaDeComando db 0
+    temErroLinhaDeComando db 0 ; flag para parar programa se houve erro de entrada na linha de comando
 
-    ; Variaveis para guardar dados do arquivo de entrada
+    ; Variaveis para guardar dados do arquivo de entrada e saida
 
     fileBuffer	db	10000 dup (?)	; Buffer de leitura do arquivo
     fileHandle	dw	0
@@ -76,12 +80,14 @@
     fileSaidaHandle	dw	0
 
     ; == infos para o resumo em tela ==
+
     totalBasesArquivo dw 0 ; total de bases nitrogenadas do arquivo, contador
     totalGruposArquivo dw 0 ; total de grupos no arquivo
     totalLinhasArquivo dw 0 ; total de linhas do arquivo (total de CRs + 1)
 
-    indiceFimBaseArquivo dw 0
+    indiceFimBaseArquivo dw 0 ; indice para limitar a leitura de grupos
 
+    ; totais calculados das bases na entrada
     totalBasesA dw 0
     totalBasesT dw 0
     totalBasesC dw 0
@@ -92,10 +98,10 @@
     stringLinhaDeSaida 	db	50 dup (?) ; linha a ser escrita no arquivo de saida a cada leitura de grupo na entrada
     tamanhoStringLinhaDeSaida dw 0
 
-    stringHeaderSaida db 15 dup (?)
+    stringHeaderSaida db 15 dup (?) ; linha a ser escrita no header do arquivo de saida
     tamanhoStringHeaderSaida dw 0
 
-    indiceArquivoEntrada dw 0
+    indiceArquivoEntrada dw 0 ; indice para percorrer grupos no arquivo de entrada
 
     ; Variaveis para o resumo em tela
 
@@ -141,14 +147,14 @@
     pop ds
 
     call processa_opcao_f ; procura e armazena nome do arquivo de entrada ou gera erro
-    call processa_opcao_o ; procura e armazena nome do arquivo de  saida ou usa o nome padrao
+    call processa_opcao_o ; procura e armazena nome do arquivo de saida ou usa o nome padrao
     call processa_opcao_n ; procura e armazena o tamanho dos grupos de bases ou gera erro
     call processa_opcao_ATGC ; procura e armazena a opcao ATGC+ ou gera erro
 
     cmp temErroLinhaDeComando, 1
     je fim_programa_principal ; se houve erro na entrada da linha de comando, finaliza o programa
 
-    call processa_arquivo_entrada
+    call processa_arquivo_entrada ; se nao, processa o arquivo de entrada e gera uma saisa
 
     fim_programa_principal:
 
@@ -166,6 +172,7 @@ processa_opcao_f	proc	near
 
     lea di, entradaLinhaComando ; Inicializa registradores
 
+    ; Busca -f na entrada, se nao houver, gera erro
     loop_busca_opcao_f:
         mov dl, es:[di]
 
@@ -192,7 +199,7 @@ processa_opcao_f	proc	near
 
     continua_processa_opcao_f_informada:
 
-        ; caso tiver opcao, guarda o nome do arquivo
+        ; caso tiver opcao -f, guarda o nome do arquivo
 
         inc di
 
@@ -243,6 +250,7 @@ processa_opcao_o	proc	near
 
     lea di, entradaLinhaComando ; Inicializa registradores
 
+    ; Busca -o na entrada, se nao houver, usa o nome padrao do arquivo de saida
     loop_busca_opcao_o:
         mov dl, es:[di]
 
@@ -299,6 +307,8 @@ processa_opcao_o	proc	near
                 ret ; retorna
 
         fim_sem_opcao_o:
+            ; usa o nome padrao a.out
+
             lea si, nomePadraoArquivoSaida ; SI recebe o endereco do nome padrao
             lea di, nomeArquivoSaida ; DI recebe o endereco do nome do arquivo a ser salvo
             mov cx, 5 ; tamanho do nome padrao
@@ -324,6 +334,7 @@ processa_opcao_n	proc	near
 
     lea di, entradaLinhaComando ; Inicializa registradores
 
+    ; Busca -n na entrada, se nao houver, gera erro
     loop_busca_opcao_n:
         mov dl, es:[di]
 
@@ -405,6 +416,7 @@ processa_opcao_ATGC	proc	near
 
     lea di, entradaLinhaComando
 
+    ; Busca -a na entrada, se nao houver, busca -t
     loop_busca_opcao_a:
         mov dl, es:[di]
 
@@ -429,6 +441,7 @@ processa_opcao_ATGC	proc	near
 
             jmp loop_busca_opcao_a
 
+    ; Busca -t na entrada, se nao houver, busca -g
     processa_busca_opcao_t:
         lea di, entradaLinhaComando
 
@@ -456,6 +469,7 @@ processa_opcao_ATGC	proc	near
 
                 jmp loop_busca_opcao_t
 
+    ; Busca -g na entrada, se nao houver, busca -c
     processa_busca_opcao_g:
         lea di, entradaLinhaComando
 
@@ -483,6 +497,7 @@ processa_opcao_ATGC	proc	near
 
                 jmp loop_busca_opcao_g
 
+    ; Busca -c na entrada, se nao houver, busca -+
     processa_busca_opcao_c:
         lea di, entradaLinhaComando
 
@@ -510,6 +525,7 @@ processa_opcao_ATGC	proc	near
 
                 jmp loop_busca_opcao_c
 
+    ; Busca -+ na entrada, se nao houver, quer dizer que nao foi passada opcao atgc, gerando erro
     processa_busca_opcao_mais:
         lea di, entradaLinhaComando
 
@@ -538,6 +554,8 @@ processa_opcao_ATGC	proc	near
                 jmp loop_busca_opcao_mais
 
     processa_opcao_atgc_completa:
+        ; se tem pelo menos uma opcao dentre atgc+, procura se existem mais opcoes
+
         mov si, di ; SI recebe o endereco atual na string de entrada
         lea di, escolhaATGC ; DI recebe o endereco das opcoes ATGE a serem salvas
 
@@ -604,7 +622,6 @@ processa_opcao_ATGC	endp
 ; Funcao para processar o arquivo de entrada com base no que foi fornecido na linha de comando
 
 processa_arquivo_entrada	proc	near
-
     mov	ax, ds ; Ajusta ES=DS
 	mov	es, ax
 
@@ -627,13 +644,13 @@ processa_arquivo_entrada	proc	near
         ; fileHandle = ax
 	    mov	fileHandle, ax
 
+        ; zera variaveis de infos do arquivo de entrada
         mov totalBasesArquivo, 0
         mov totalGruposArquivo, 0
-        mov totalLinhasArquivo, 1 ; comeca em uma linha sempre, pois é total de CR/LF + 1
+        mov totalLinhasArquivo, 0
 
         loop_le_caractere_arquivo:
-
-            ; contar tamanho do arquivo de entrada para validar o mesmo
+            ; loop para contar tamanho do arquivo de entrada para validar o mesmo
 
             ;		if ( (ax=fread(ah=0x3f, bx=FileHandle, cx=1, dx=FileBuffer)) ) {
             ;			printf ("Erro na leitura do arquivo.\r\n");
@@ -923,7 +940,6 @@ processa_arquivo_entrada	proc	near
             jmp	final_processa_arquivo_entrada
 
         le_grupo_loop_processa_grupo:
-
             mov totalBasesA, 0
             mov totalBasesT, 0
             mov totalBasesC, 0
