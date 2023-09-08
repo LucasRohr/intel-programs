@@ -1,6 +1,8 @@
 ;
 ;====================================================================
 ; Trabalho Intel 2023/1
+; Nome: Lucas Rohr Carreno
+; Matricula: 00341948
 ;====================================================================
 ;
 	.model small
@@ -65,7 +67,7 @@
 
     msgArquivoMuitoPequeno db "Erro: o arquivo informado eh muito pequeno", CR, LF, 0
     msgTamanhoMinArquivo db "Tamanho minimo:", CR, LF, 0
-    msgArquivoMuitoGrande db "Erro: o arquivo informado eh muito grande (mais de 10.000 caracteres)", CR, LF, 0
+    msgArquivoMuitoGrande db "Erro: o arquivo informado eh muito grande (mais de 10.000 bases)", CR, LF, 0
 
     msgCRLF	db	CR, LF, 0
 
@@ -560,6 +562,8 @@ processa_opcao_ATGC	proc	near
         lea di, escolhaATGC ; DI recebe o endereco das opcoes ATGE a serem salvas
 
         loop_processa_atgc_completa:
+            ; compara cada caractere da opcao atgc passada e salva caso for valido
+
             mov dl, es:[si]
 
             cmp dl, ' '
@@ -680,6 +684,7 @@ processa_arquivo_entrada	proc	near
             mov	al,0
             jmp	fim_loop_processa_file_buffer_tamanho_arquivo
 
+            ; depois compara o caractere lido
             continua_valida_caractere_arquivo_entrada:
                 mov dl, fileBuffer
 
@@ -689,24 +694,27 @@ processa_arquivo_entrada	proc	near
                 cmp dl, LF
                 je loop_processa_file_buffer_tamanho_arquivo_LF
 
-                ; se nao for quebra de linha e nem 0, contabiliza
+                ; se nao for quebra de linha, contabiliza caractere
                 inc totalBasesArquivo
-                jmp loop_le_caractere_arquivo
+                jmp loop_le_caractere_arquivo ; le proximo char
 
             loop_processa_file_buffer_tamanho_arquivo_CR:
-                inc totalLinhasArquivo
+                ; ignora se for CR
                 jmp loop_le_caractere_arquivo
         
             loop_processa_file_buffer_tamanho_arquivo_LF:
+                ; incrementa linha se for LF
                 inc totalLinhasArquivo
                 jmp loop_le_caractere_arquivo
 
         fim_loop_processa_file_buffer_tamanho_arquivo:
             mov dx, totalBasesArquivo
 
+            ; gera erro se tiver menos bases que o tamanho dos grupos
             cmp dx, tamanhoGrupo
             jl tamanho_arquivo_invalido_pequeno
 
+            ; gera erro se tiver mais que 10.000 bases
             cmp dx, tamanhoMaxArquivo
             jg tamanho_arquivo_invalido_grande
 
@@ -723,6 +731,8 @@ processa_arquivo_entrada	proc	near
                 jmp	final_processa_arquivo_entrada
 
         continua_valida_tamanho_arquivo_entrada_valido:
+            ; primeiro calcula o total de grupos a serem processados
+
             mov dx, totalBasesArquivo
             mov indiceFimBaseArquivo, dx ; total m de bases
 
@@ -734,7 +744,7 @@ processa_arquivo_entrada	proc	near
             inc totalGruposArquivo ; +1
             inc indiceFimBaseArquivo
 
-            ; criar arquivo de saida
+            ; cria arquivo de saida para escrever dados
 
             ;if (fcreate(FileNameDst)) {
             ;	fclose(FileHandleSrc);
@@ -755,8 +765,6 @@ processa_arquivo_entrada	proc	near
             jmp final_processa_arquivo_entrada
 
         printa_header_arquivo_saida:
-            ; abrir o arquivo de output
-
             ; tenta abrir arquivo de saida, fopen
             mov	al, 1 ; modo write
             lea	dx, nomeArquivoSaida
@@ -773,6 +781,9 @@ processa_arquivo_entrada	proc	near
             jmp	final_processa_arquivo_entrada
 
             continua_printa_header_arquivo_saida:
+                ; busca cada opcao ATGC informada para colocar ela ou nao no header da saida
+
+                ; salva string do header a ser escrito
                 lea si, stringHeaderSaida
 
                 lea di, escolhaATGC ; Inicializa registradores
@@ -903,7 +914,9 @@ processa_arquivo_entrada	proc	near
                 jmp final_processa_arquivo_entrada
 
         loop_processa_grupo:
-            ; fecha arquivo de entrada
+            ; loop para ler e processar dados de um grupo de bases
+
+            ; fecha arquivo de entrada pois estava aberto para contar caracteres
             mov	bx, fileHandle
             call fclose
 
@@ -923,8 +936,8 @@ processa_arquivo_entrada	proc	near
             jmp	final_processa_arquivo_entrada
 
         altera_indice_arquivo_loop_processa_grupo:
-            ; le indiceArquivoEntrada caracteres do arquivo para mudar a posicao
-            ; do ponteiro do arquivo para o endereco do grupo atual
+            ; le um total de caracteres indicado por indiceArquivoEntrada no arquivo para mudar a posicao
+            ; do ponteiro do arquivo para o endereco de inicio do grupo atual
 
             mov	bx, fileHandle
             mov	ah, 3fh
@@ -940,6 +953,8 @@ processa_arquivo_entrada	proc	near
             jmp	final_processa_arquivo_entrada
 
         le_grupo_loop_processa_grupo:
+            ; zera total das bases e tamanho da saida
+            
             mov totalBasesA, 0
             mov totalBasesT, 0
             mov totalBasesC, 0
@@ -954,26 +969,31 @@ processa_arquivo_entrada	proc	near
             ;			exit(1);
             ;		}
 
+            ; le n caracteres (grupo de bases) e salva no buffer
             mov	bx, fileHandle
             mov	ah, 3fh
             mov	cx, tamanhoGrupo ; n caracteres a serem lidos
             lea	dx, fileBuffer
             int	21h
 
+            ; se nao deu erro, continua
             jnc	verifica_fim_loop_processa_grupo
 
+            ; se deu erro, mostra e encerra
             lea	bx, msgErroLerArquivo
             call printf_s
             mov	al,1
             jmp	final_processa_arquivo_entrada
 
             verifica_fim_loop_processa_grupo:
+                ; condicao de parada da leitura de grupos
+
                 cmp indiceFimBaseArquivo, 0 ; se chegou no fim de quantos grupos vai ter, acaba
                 je final_resumo_processa_arquivo_entrada
 
-                dec indiceFimBaseArquivo
+                dec indiceFimBaseArquivo ; decrementa indice de fim das leituras
 
-                ; Verifica se terminou o arquivo
+                ; Verifica se terminou o arquivo via ax, de forma adicional
                 ;	if (ax==0) {
                 ;		fclose(bx=FileHandle);
                 ;		exit(0);
@@ -984,9 +1004,9 @@ processa_arquivo_entrada	proc	near
                 jmp		final_resumo_processa_arquivo_entrada
 
             continua_loop_processa_grupo:
-                ; preciso iterar pelo file buffer do grupo atual e processar o grupo
+                ; iterar pelo file buffer do grupo atual e processar o grupo
                 ;   -> usar o arquivo de entrada e processar ele (fileBuffer)
-                ;   -> salvar totais para mostrar no resumo e na saida
+                ;   -> salvar totais de bases para mostrar no resumo e na saida
                 ;   -> escrever dados do grupo no arquivo de saida
 
                 lea di, fileBuffer ; di recebe o endereco do fileBuffer
@@ -1002,6 +1022,8 @@ processa_arquivo_entrada	proc	near
 
                     cmp dl, 0
                     je escreve_grupo_no_arquivo_saida ; se chegou no 0 do buffer, acabou ele
+
+                    ; se achar uma base valida, processa ela
 
                     cmp dl, opcaoASaida
                     je processa_file_buffer_A
@@ -1178,8 +1200,9 @@ processa_arquivo_entrada	proc	near
 
                         jnc	retorna_loop_processa_grupo ; se escreveu com sucesso, vai para o proximo grupo
 
+                        ; se houve erro escrevendo no arquivo de saida, fecha arquivos e encerra
                         mov	bx, fileHandle
-                        call fclose ; se houve erro escrevendo no arquivo de saida, fecha arquivos e encerra
+                        call fclose 
 
                         mov	bx, fileSaidaHandle
                         call fclose
@@ -1195,13 +1218,17 @@ processa_arquivo_entrada	proc	near
                 
 
     final_resumo_processa_arquivo_entrada:
-        ; == secao de opcoes ==
+        ; se processou todos os grupos com sucesso, finaliza com o resumo em tela
+
+        ; fechar arquivos
 
         mov	bx, fileHandle
         call fclose
 
         mov	bx, fileSaidaHandle
         call fclose
+
+        ; == secao de opcoes de entrada do terminal ==
 
         lea bx, msgInfosDasOpcoes
         call printf_s
@@ -1243,11 +1270,12 @@ processa_arquivo_entrada	proc	near
         lea bx, escolhaATGC
         call printf_s
 
-        ; == secao de dados da entrada ==
+        ; == secao de dados do arquivo de entrada ==
         
         lea bx, msgInfosDaEntrada
         call printf_s
 
+        ; -> total de bases no arquivo
         lea bx, msgNumeroDeBases
         call printf_s
 
@@ -1257,6 +1285,7 @@ processa_arquivo_entrada	proc	near
         lea bx, msgCRLF
         call printf_s
 
+        ; -> total de grupos no arquivo
         lea bx, msgNumeroDeGrupos
         call printf_s
 
@@ -1266,6 +1295,7 @@ processa_arquivo_entrada	proc	near
         lea bx, msgCRLF
         call printf_s
 
+        ; -> total de linhas no arquivo
         lea bx, msgNumeroDeLinhas
         call printf_s
 
@@ -1278,6 +1308,8 @@ processa_arquivo_entrada	proc	near
         .exit
 
     final_processa_arquivo_entrada:
+        ; final caso houve algum erro de processamento, apenas fechar arquivos e encerra
+
         mov	bx, fileHandle
         call fclose
 
@@ -1290,6 +1322,8 @@ processa_arquivo_entrada	endp
 
 
 ; ========== Funcoes default de uso geral =============
+
+; -> funcoes auxiliares basicas
 
 ;--------------------------------------------------------------------
 ;Fun��o Cria o arquivo cujo nome est� no string apontado por DX
@@ -1383,7 +1417,7 @@ atoi	endp
 
 
 ; Funcao para printar um valor inteiro decimal em tela
-; -> recebe o numero no registrador ax
+; -> recebe o numero decimal no registrador ax
 
 printa_num proc
     mov cx, 0
@@ -1394,7 +1428,7 @@ printa_num proc
         div bx  ; divide ax por 10
 
         add dl, '0' ; converte para ASCII
-        push dx  ; salva em ordem reversa, por isso salva na pilha
+        push dx  ; converte em ordem reversa da string, por isso salva na pilha
 
         inc cx                          
         cmp ax, 0  ; se ax for zero, finaliza
@@ -1414,7 +1448,8 @@ printa_num endp
 
 ; Funcao para escrever um valor inteiro decimal no arquivo de saida
 ; -> recebe o valor inteiro decimal no ax
-; -> assumir que ES=DS e si contem o endereco atual da string a ser escrita
+; -> assumir que ES=DS
+; -> assumir que si contem o endereco atual da string a ser escrita
 
 escreve_num_arquivo_saida proc
     mov cx, 0
@@ -1425,7 +1460,7 @@ escreve_num_arquivo_saida proc
         div bx  ; divide ax por 10
 
         add dl, '0' ; converte para ASCII
-        push dx  ; escreve em ordem reversa, por isso salva na pilha os valores em ASCII
+        push dx  ; converte em ordem reversa da string, por isso salva na pilha os valores em ASCII
 
         inc cx                          
         cmp ax, 0  ; se ax for zero, finaliza
