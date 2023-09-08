@@ -97,10 +97,10 @@
     totalBasesAT dw 0
     totalBasesCG dw 0
 
-    stringLinhaDeSaida 	db	50 dup (?) ; linha a ser escrita no arquivo de saida a cada leitura de grupo na entrada
+    stringLinhaDeSaida db 50 dup (?) ; linha a ser escrita no arquivo de saida a cada leitura de grupo na entrada
     tamanhoStringLinhaDeSaida dw 0
 
-    stringHeaderSaida db 15 dup (?) ; linha a ser escrita no header do arquivo de saida
+    stringHeaderSaida db 20 dup (?) ; linha a ser escrita no header do arquivo de saida
     tamanhoStringHeaderSaida dw 0
 
     indiceArquivoEntrada dw 0 ; indice para percorrer grupos no arquivo de entrada
@@ -114,9 +114,9 @@
     msgOpcoesATGC db CR, LF, "-> Opcoes ATGC:", CR, LF, 0
 
     msgInfosDaEntrada db CR, LF, CR, LF, "== Informacoes do arquivo de entrada ==", CR, LF, 0
-    msgNumeroDeBases db CR, LF, "-> Total de bases no arquivo de entrada:", CR, LF, 0
-    msgNumeroDeGrupos db CR, LF, "-> Total de grupos no arquivo de entrada:", CR, LF, 0
-    msgNumeroDeLinhas db CR, LF, "-> Total de linhas no arquivo de entrada:", CR, LF, 0
+    msgNumeroDeBases db CR, LF, "-> Total de bases no arquivo de entrada: ", 0
+    msgNumeroDeGrupos db CR, LF, "-> Total de grupos no arquivo de entrada: ", 0
+    msgNumeroDeLinhas db CR, LF, "-> Total de linhas no arquivo de entrada: ", 0
 
     ; ---------------------------------------------------------------
 
@@ -652,6 +652,9 @@ processa_arquivo_entrada	proc	near
         mov totalBasesArquivo, 0
         mov totalGruposArquivo, 0
         mov totalLinhasArquivo, 0
+        mov indiceArquivoEntrada, 0
+        mov tamanhoStringHeaderSaida, 0
+        mov indiceFimBaseArquivo, 0
 
         loop_le_caractere_arquivo:
             ; loop para contar tamanho do arquivo de entrada para validar o mesmo
@@ -883,7 +886,7 @@ processa_arquivo_entrada	proc	near
                     mov es:[si], opcaoMaisSaida ; bota + no header
                     inc si ; proxima posicao da linha
                     mov es:[si], opcaoGSaida ; bota G no header
-                    
+
                     add tamanhoStringHeaderSaida, 7 ; A+T;C+G
 
                 finaliza_printa_header_arquivo_saida:
@@ -1180,7 +1183,7 @@ processa_arquivo_entrada	proc	near
 
                         mov ax, totalBasesCG
                         call escreve_num_arquivo_saida ; escreve o total de CG na linha
-                        
+
                         inc tamanhoStringLinhaDeSaida ; pois escreve ponto e virgula
 
                     finaliza_escreve_grupo_no_arquivo_saida:
